@@ -2,7 +2,7 @@
 Building a pipeline for automated CRISPR construct design in Drosophila Melanogaster. :fly:
 
 Data is organised from input files with gene IDs, reference genome sequences and annotations, and all potential guideRNA sequences. 
-The best guide RNA is chosen for the given parameters, and primers are designed for the left and right homology arms of this region,
+The best guide RNA is chosen for the given parameters, and primers are designed for the left and right homology arms of this region
 as well as two verification primers outside of this region.
 
 ![image](https://user-images.githubusercontent.com/120821707/210607784-b8ccab0c-a99f-46fc-afdc-5f6f702fe3a1.png)
@@ -15,7 +15,7 @@ as well as two verification primers outside of this region.
 
 Demonstrate input and output formats for your functions here with screenshots/descriptions. This will ensure our different code sections match up.
 
-###[finalCode](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/finalCode)
+### [finalCode](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/finalCode)
 
 This is where final, compiled scripts can go. Ideally we want everything we want to package in this directory only.
 
