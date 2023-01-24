@@ -1,29 +1,29 @@
 def revComp(inputSeq):
-  """
-  This function takes an input sequence and returns the reverse complement.
+    """
+    This function takes an input sequence and returns the reverse complement.
 
-  Input: inputSeq in str format
-  Output: revComp in str format
+    params: inputSeq in str format
+    returns: revComp in str format
 
-  """
-  complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-  
-  revComp = ""
-  for base in inputSeq[::-1]:
-    revComp += complement[(base.upper())]
+    """
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    
+    revComp = ""
+    for base in inputSeq[::-1]:
+        revComp += complement[(base.upper())]
 
-  return revComp
+    return revComp
 
 def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     '''
     Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
 
-    Input: 
+    params: 
       TFs_list: excel file of query sequences with Gene_ID and Transcript_ID
       ref_genome: fasta file for reference genome
       annotation: .gtf file for ref_genome
     
-    Output:
+    returns:
       TFsdf: dataframe of TF information and sequences
       TFsdict_of_dict: TFsdf as a dictionary of dictionaries per index
     '''

@@ -1,47 +1,68 @@
 #Primers output will be a dataframe, for BLAST we need FASTA:
-def dftoFASTA(primersdf, transgenicFile):
+def dftoFASTA(primersdf, transgenicFileon3, transgenicFileonOther):
   """
   Reformats a primers dataframe to the appropriate format for a BLAST search. 
 
   params: 
-    primersdf: a dataframe of primers
-    transgenicFile: filename and path for fasta file to be created
+    primersdf: a dataframe of primers with sequence in the "primer_sequence" column and chromosome number in the "Chromosome" column.
+    transgenicFileon3: path and desired filename for fasta file to be created for primers on chromosome 3.
+    transgenicFileonOther: path and desired filename for fasta file to be created for primers on all other chromosomes.
 
-  returns: transgenicFile - this is a fasta file of the primers identified by all other rows in the dataframe.
+  returns: the two fasta files defined in params, in format:
+      >"primer{index from primersdf}"
+      primer sequence
 
   """
   import pandas as pd
   from Bio import SeqIO
 
-  primersFASTA = open(transgenicFile, "w")
+  #write FASTA file for primers of chromosome3
+  primersFASTA = open(transgenicFileon3, "w")
 
   #Per row in the dataframe, concatenate all information as a header, and primer sequence as sequence
   #Write this into the fasta file as>header \n sequence
   for index, rowcontents in primersdf.iterrows():
-    split = (str(rowcontents).split())
-    header = (">" + "primer" + str(index))
-    sequence = split[-7]
+    if rowcontents["Chromosome"] == 3 or '3':
+      header = (">" + "primer" + str(index))
+      sequence = rowcontents["primer_sequence"]
 
-    primersFASTA.write(str(header) + "\n" + str(sequence) + "\n")
+  primersFASTA.write(str(header) + "\n" + str(sequence) + "\n")
 
   primersFASTA.close()
 
-#use shell to run BLAST on primers against custom transgenic reference file
-%%shell
+  #Write FASTA file for primers on all other chromosomes
+  primersFASTA = open(transgenicFileonOther, "w")
 
-#I've made a custom transgenic reference FASTA which uses the appropriate transgenic strain for each chromosome
-#(has chromosome 3 from nos-Cas9_on_2 and all other chromosomes from nos-Cas9_on_3)
-#Use this to BLAST against - "transgenicRef.fasta"
+  #Per row in the dataframe, concatenate all information as a header, and primer sequence as sequence
+  #Write this into the fasta file as>header \n sequence
+  for index, rowcontents in primersdf.iterrows():
+    if rowcontents["Chromosome"] != 3 or '3':
+      header = (">" + "primer" + str(index))
+      sequence = rowcontents["primer_sequence"]
 
-#install BLAST (if necessary)
-gunzip 'ncbi-blast-2.13.0+-x64-linux.tar.gz'
-tar -xvf 'ncbi-blast-2.13.0+-x64-linux.tar'
-#change directory to ncbi-blast-2.13.0+/
+  primersFASTA.write(str(header) + "\n" + str(sequence) + "\n")
 
-#run BLAST
-makeblastdb -in transgenicRef.fasta -dbtype nucl -parse_seqids 
-blastn -query queryprimers.fasta -subject transgenicRef.fasta -evalue 1e-23 -outfmt 6 -out primerblast.txt -max_target_seqs 2
-  #This output format is as simple as possible, so that we get as small a file when querying many primers at once
+  primersFASTA.close()
+
+#In utils, run this twice, one for each transgenic reference    
+def runBLAST(queryPrimersfasta, transgenicreffasta):
+  """
+  A subprocess shell command to run BLAST. BLAST must be installed.
+
+  params:
+    queryPrimersfasta: fasta file of primers to query
+    transgeicreffasta: fasta file of the reference genome
+
+  return:
+    BLASToutput: BLAST output file in output format 6 as a .txt file
+
+  """ 
+
+  #still to be completed 
+  import subprocess
+
+  subprocess.run["BLAST.sh", f"--input_file = {queryPrimersfasta}", 
+  f"--output_file = {transgenicreffasta}"]
 
 def primerCountBLAST(BLASTresults, primersdf):
   '''
