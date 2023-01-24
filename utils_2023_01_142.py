@@ -14,46 +14,28 @@ def revComp(inputSeq):
 
   return revComp
 
-def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation, transgenic_genome_chr2, transgenic_genome_chr3):
+def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     '''
-    Creating a dataframe from sequence information and genes of interest. Depends on function revComp(). 
+    Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
 
-    params:
-            TF_list: xlsx file listing the genes of interest
-            ref_genome: fasta file containing the gene sequence information for the reference genome
-            annotation: gtf file containing the gene annotation information for the reference genome
-            transgenic_genome_chr2: fasta file containing the gene sequence information for the transgenic strain
-                that will be used for injection if targeted TF is on chromosome 3
-            transgenic_genome_chr3: fasta file containing gene sequence information for the transgenic strain
-                that will be used for injection if targeted TF is on chromosome X, 2, or 4
-
-
-    returns: dataframe with dictionaries for every isotype for each gene of interest
-        {..., 
-        108843:{    'Gene_ID': 'FBgn0004652',
-                    'Transcript_ID': 'FBtr0083651', 
-                    'Chromosome': '3R', 
-                    'Gene_Region': 'stop_codon', 
-                    'Start': 18426145, 
-                    'Stop': 18426147, 
-                    'Strand': '-', 
-                    'Reference_Seq': 'TTGATCGTAGGACAC', 
-                    'Transgenic_Seq': 'GACCCTAGGACCGG'
-                }
-        ...,
-        }
-
+    Input: 
+      TFs_list: excel file of query sequences with Gene_ID and Transcript_ID
+      ref_genome: fasta file for reference genome
+      annotation: .gtf file for ref_genome
+    
+    Output:
+      TFsdf: dataframe of TF information and sequences
+      TFsdict_of_dict: TFsdf as a dictionary of dictionaries per index
     '''
+
     import pandas as pd
     from Bio import SeqIO
-    
+
     #This is the input file containing the TFs we want to query
     #Imported as a pandas dataframe
     queryTFsdf = pd.read_excel(TF_list)
-    #Ths contains 765 TFs total
 
     #This is the .gtf file with annotations for each gene on the reference genome
-    #Note that I'll use these for the info categories of the final pandas df (rather than the transgenic genome annotations)
     refAnnotationsHeaders = ["Chromosome", "Source", "Gene_Region", "Start", "Stop", "Score", "Strand", "Frame", "Attribute"]
     refGenomeAnnotation = pd.read_csv(annotation, sep = "\t", header = None, index_col = False, names = refAnnotationsHeaders)
 
@@ -61,18 +43,8 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation, transgenic_gen
     refSeqPerChromosome = {}
     for seq in SeqIO.parse(open(ref_genome), 'fasta'):
         refSeqPerChromosome[seq.id] = seq.seq
-
-    #This is the nos-Cas9 on 2 sequence - use for chromosome 3 only
-    on2SeqPerChromosome = {}
-    for seq in SeqIO.parse(open(transgenic_genome_chr2), 'fasta'):
-        on2SeqPerChromosome[seq.id] = seq.seq
-
-    #This is the nos-Cas9 on 3 sequence - use for all other chromosomes
-    on3SeqPerChromosome = {}
-    for seq in SeqIO.parse(open(transgenic_genome_chr3), 'fasta'):
-        on3SeqPerChromosome[seq.id] = seq.seq
     
-    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
+    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript_ID
     index = 0
 
     #Add new categories to the dataframe
@@ -96,52 +68,43 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation, transgenic_gen
 
     refGenomeAnnotation = refGenomeAnnotation.loc[refGenomeAnnotation["Gene_Region"].isin(["start_codon", "stop_codon"])]
 
-    TFsdf = refGenomeAnnotation[["Gene_ID", "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
+    TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
 
     #Add reference genome sequence per gene region
     #This will correspond to 1.3kb upstream and downstream of ATG/stop codon 
-    TFsdf = TFsdf.assign(Reference_Seq = "", Transgenic_Seq = "")
+    TFsdf = TFsdf.assign(Reference_Seq = "")
 
     for index, rowcontents in TFsdf.iterrows():
         if rowcontents["Strand"] == "+":
 
             #Define 2.6kb gene region
-            regionStart = rowcontents["Start"] - 1301
-            regionStop = rowcontents["Stop"] + 1300
+            regionStart = rowcontents["Start"] - 1701
+            regionStop = rowcontents["Stop"] + 1700
 
             #Add reference sequence
             TFsdf.at[index,"Reference_Seq"] = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
-            
-            #Add appropriate transgenic sequence, depending on the chromosome
-            if rowcontents["Chromosome"].startswith("3"):
-                TFsdf.at[index,"Transgenic_Seq"] = str(on2SeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
-            else:
-                TFsdf.at[index,"Transgenic_Seq"] = str(on3SeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
 
         if rowcontents["Strand"] == "-":
 
             #Define 2.6kb gene region
-            regionStart = rowcontents["Start"] - 1301
-            regionStop = rowcontents["Stop"] + 1300
+            regionStart = rowcontents["Start"] - 1701
+            regionStop = rowcontents["Stop"] + 1700
 
             #Add reference sequence
             refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
             TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
 
-            #Add appropriate transgenic sequence, depending on the chromosome
-            if rowcontents["Chromosome"].startswith("3"):
-                transgStrandSeq = str(on2SeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
-                TFsdf.at[index,"Transgenic_Seq"] = revComp(transgStrandSeq)
-            else:
-                transgStrandSeq = str(on3SeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
-                TFsdf.at[index,"Transgenic_Seq"] = revComp(transgStrandSeq)
+    #re-index
+    TFsdf = TFsdf.reset_index()
+    del TFsdf["index"]
 
+    #Create a dictionary of dictionaries for the df
     TFsdict_of_dict = {}
     for index, rowcontents in TFsdf.iterrows():
         TFsdict_of_dict[index] = rowcontents.to_dict()
 
-    return TFsdict_of_dict
-
+    return TFsdf, TFsdict_of_dict
+    
 def filter_gRNA(gRNA_file, TF_dict):
     '''
     gRNA_file: gff file
