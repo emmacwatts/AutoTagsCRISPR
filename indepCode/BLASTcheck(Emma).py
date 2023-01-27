@@ -1,5 +1,5 @@
 #Primers output will be a dataframe, for BLAST we need FASTA:
-def dftoFASTA(primersdf, transgenicFileon3, transgenicFileonOther):
+def dftoFASTA(finalTFsdfwithPrimers, transgenicFileon3, transgenicFileonOther):
   """
   Reformats a primers dataframe to the appropriate format for a BLAST search. 
 
@@ -19,7 +19,6 @@ def dftoFASTA(primersdf, transgenicFileon3, transgenicFileonOther):
   #write FASTA file for primers of chromosome3
   primersFASTA = open(transgenicFileon3, "w")
 
-  #Per row in the dataframe, concatenate all information as a header, and primer sequence as sequence
   #Write this into the fasta file as>header \n sequence
   for index, rowcontents in primersdf.iterrows():
     if rowcontents["Chromosome"] == 3 or '3':
