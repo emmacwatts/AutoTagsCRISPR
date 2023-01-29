@@ -99,3 +99,80 @@ def primerCountBLAST(BLASTresults, primersdf):
       faultyPrimers.drop([index], axis = 0, inplace = True)
 
   return faultyPrimers
+
+  ##This is the primer BLAST code for per chromosome check
+  def BLASTSixPrimers(sixPrimers, chromosome):
+    
+    import pandas as pd
+    from Bio import SeqIO
+
+    #This corresponds to the order of the list, sixPrimers
+    primerTypes = ["VAL-F", "HAL-F", "HAL-R", "HAR-F", "HAR-R", "VAL-R"]
+
+    #Upload transgenic reference file
+    #This will be chromosome 3 of cas_on_2, and all other chromosomes from cas_on_3.
+    if chromosome == 3:
+        transgenicRefFile = SeqIO.parse("inputfiles/dmel6-nos-Cas9_on_2.fasta", "fasta")    
+    else:
+        transgenicRefFile = SeqIO.parse("inputfiles/dmel6-nos-Cas9_on_3.fasta", "fasta")    
+
+    for fasta in transgenicRefFile:
+        if fasta.id == chromosome:
+            transgenicRefSequence = fasta.seq
+
+    for primer in sixPrimers:
+        BLASTcount = transgenicRefSequence.count(primer)
+        if BLASTcount != 1:
+            faultyPrimer = primerTypes[sixPrimers.index(primer)]
+        else:
+            faultyPrimer = "none"
+
+    return faultyPrimer
+
+##Just storing this here in case I need it
+        #nextPrimers variable allows removal of the top hit where BLAST has indicated primer needs to be excluded.
+      if nextPrimer == 0: 
+        potential_primers = potential_primers
+      elif nextPrimer <= len(potential_primers):
+    #If, after BLAST we need to exclude the first x primers:
+        potential_primers = potential_primers[nextPrimer:] #remove the top hit(s)
+      else:
+        print("After excluding BLAST-searched primers, no remaining primers are compatible.")    
+        success = False
+        potential_primers = "NA"
+    
+def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
+    '''
+    Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
+
+    Input: 
+      TFs_list: excel file of query sequences with Gene_ID and Transcript_ID
+      ref_genome: fasta file for reference genome
+      annotation: .gtf file for ref_genome
+    
+    Output
+      TFsdf: dataframe of TF information and sequences
+      TFsdict_of_dict: TFsdf as a dictionary of dictionaries per index
+    '''
+
+    import pandas as pd
+    from Bio import SeqIO
+    from gtfparse import read_gtf
+
+    #This is the input file containing the TFs we want to query
+    #Imported as a pandas dataframe
+    queryTFsdf = pd.read_excel(TF_list)
+
+    #This is the .gtf file with annotations for each gene on the reference genome
+    refGenomeAnnotations = read_gtf("gene_annotations.gtf")
+    
+    #This is the FASTA file of the reference genome sequence
+    refSeqPerChromosome = {}
+    for seq in SeqIO.parse(open(ref_genome), 'fasta'):
+        refSeqPerChromosome[seq.id] = seq.seq
+
+    
+    refGenomeAnnotation = refGenomeAnnotation.loc[refGenomeAnnotation["feature"].isin(["start_codon", "stop_codon"])]
+
+    TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Transcript_Symbol", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["gene_id"].isin(queryTFsdf["Flybase_ID"])]
+    

@@ -1,3 +1,19 @@
+def revComp(inputSeq):
+    """
+    This function takes an input sequence and returns the reverse complement.
+
+    params: inputSeq in str format
+    returns: revComp in str format
+
+    """
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    
+    revComp = ""
+    for base in inputSeq[::-1]:
+        revComp += complement[(base.upper())]
+
+    return revComp
+
 def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     '''
     Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
@@ -14,6 +30,7 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     import pandas as pd
     from Bio import SeqIO
+    from gtfparse import read_gtf
 
     #This is the input file containing the TFs we want to query
     #Imported as a pandas dataframe
@@ -28,11 +45,11 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     for seq in SeqIO.parse(open(ref_genome), 'fasta'):
         refSeqPerChromosome[seq.id] = seq.seq
     
-    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
+    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, Transcript ID, and Transcript Symbol
     index = 0
 
     #Add new categories to the dataframe
-    refGenomeAnnotation = refGenomeAnnotation.assign(Gene_ID = "", Gene_Symbol = "", Transcript_ID = "")
+    refGenomeAnnotation = refGenomeAnnotation.assign(Gene_ID = "", Gene_Symbol = "", Transcript_ID = "", Transcript_Symbol = "")
 
     #For each attribute value, extract the gene ID and symbol and add this to the new categories
     for attribute in refGenomeAnnotation['Attribute']:
@@ -41,8 +58,9 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
         fullattsplit = fullatt.split(" ")
         refGenomeAnnotation.at[index,"Gene_ID"] = fullattsplit[1]
         refGenomeAnnotation.at[index,"Gene_Symbol"] = fullattsplit[3]
-        if len(fullattsplit) == 8:
+        if len(fullattsplit) > 4:
             refGenomeAnnotation.at[index,"Transcript_ID"] = fullattsplit[5]
+            refGenomeAnnotation.at[index,"Transcript_Symbol"] = fullattsplit[7]
         index+=1
 
     #Delete Attributes category
@@ -52,10 +70,10 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     refGenomeAnnotation = refGenomeAnnotation.loc[refGenomeAnnotation["Gene_Region"].isin(["start_codon", "stop_codon"])]
 
-    TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
+    TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Transcript_Symbol", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
 
     #Add reference genome sequence per gene region
-    #This will correspond to 1.3kb upstream and downstream of ATG/stop codon 
+    #This will correspond to 1.7kb upstream and downstream of ATG/stop codon 
     TFsdf = TFsdf.assign(Reference_Seq = "")
 
     for index, rowcontents in TFsdf.iterrows():
