@@ -392,3 +392,6 @@ def find_best_gRNA(df):
 
   #if best_sgRNA!=[]:
     #get a new batch of sgRNA's and reapet process
+
+
+def primerSpacing(inputslist):
