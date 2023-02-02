@@ -30,7 +30,6 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     import pandas as pd
     from Bio import SeqIO
-    from gtfparse import read_gtf
 
     #This is the input file containing the TFs we want to query
     #Imported as a pandas dataframe
@@ -80,8 +79,8 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
         if rowcontents["Strand"] == "+":
 
             #Define 2.6kb gene region
-            regionStart = rowcontents["Start"] - 1701
-            regionStop = rowcontents["Stop"] + 1700
+            regionStart = rowcontents["Start"] - 1601
+            regionStop = rowcontents["Stop"] + 1600
 
             #Add reference sequence
             TFsdf.at[index,"Reference_Seq"] = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
@@ -89,8 +88,8 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
         if rowcontents["Strand"] == "-":
 
             #Define 2.6kb gene region
-            regionStart = rowcontents["Start"] - 1701
-            regionStop = rowcontents["Stop"] + 1700
+            regionStart = rowcontents["Start"] - 1601
+            regionStop = rowcontents["Stop"] + 1600
 
             #Add reference sequence
             refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
