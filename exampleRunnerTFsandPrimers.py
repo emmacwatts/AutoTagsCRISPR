@@ -32,6 +32,8 @@ stringency, potential_primers = u.stringencyIterate(exampleTemplate, "VAL-F", bl
 
 mountedPrimers = u.mountedPrimers("HAL-R", exampleHALRprimers, exampleTemplate)
 #This gives the only primer that starts at 1669, and makeMount prints 25 bp from 1669
+mountedPrimers = u.mountedPrimers("HAL-R", exampleHALRprimers, exampleTemplate, makeMount= True)
+#Not sure about the makeMount moutedprimer rev comp - isn't it already the revcomp at the template?
 
 sixPrimers = u.addSixPrimers(exampleTemplate)
 #Works! Prints: ['GTGGGCGTGGCAAATAGTTG', 'TCCATCCGTCGGTCATTTCG', 'TTGACATCCGAAGCTAAATCCCATTCGTC', 'AAGGGCTTACAACAAATTCCG', 'GCTGATGCTGATGCTGATGC', 'AAACATTGCCGCGTTCTACG']

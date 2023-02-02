@@ -119,11 +119,15 @@ def stringencyIterate(template, primer_type, useExtRegion = False):
     #iterate through stringencies
   for stringency in range(0,2):
     success, potential_primers = designPrimers(stringency, primer_type, template, useExtendedRegion = useExtRegion)
-    if primer_type == "HAL-R" or primer_type =="HAR-F": #check mounting for special case, if already stringency 2, makeMount
+    if success == True and primer_type == "HAL-R" or primer_type =="HAR-F": #check mounting for special case
       potential_primers = mountedPrimers(primer_type, potential_primers, template)
+      #If this is the last stringency, use makeMount to generate a mounted primer
       if potential_primers == [] and stringency == 2:
           potential_primers = mountedPrimers(primer_type, potential_primers, template, makeMount = True)
-          success == True   
+          success = True 
+      #Otherwise if not primer is correctly mounted, return false to move to the next stringency
+      elif potential_primers == [] and stringency < 2:
+          success = False
     #if no primer obtained, re-design primer (stay in loop)
     #else, keep this potential_primers value
     if success == True:
@@ -176,7 +180,7 @@ def mountedPrimers(primer_type, potential_primers, template, makeMount = False):
   
   #If no primer is found for all stringency levels then manually design.
   else:
-    mountedPrimer = [template[p["initial_region_start"]: p["initial_region_start"]+p["initial_region_length"]]]
+    mountedPrimer = template[p["initial_region_start"]: p["initial_region_start"]+p["initial_region_length"]]
     if primer_type == "HAL-R": #This is a reverse primer, so need reverse complement to match to template
         mountedPrimer = [revComp(mountedPrimer)]
   
