@@ -121,6 +121,9 @@ def stringencyIterate(template, primer_type, useExtRegion = False):
     success, potential_primers = designPrimers(stringency, primer_type, template, useExtendedRegion = useExtRegion)
     if success == True and primer_type == "HAL-R" or primer_type =="HAR-F": #check mounting for special case
       potential_primers = mountedPrimers(primer_type, potential_primers, template)
+
+      #second last scenario: improve first hit
+
       #If this is the last stringency, use makeMount to generate a mounted primer
       if potential_primers == [] and stringency == 2:
           potential_primers = mountedPrimers(primer_type, potential_primers, template, makeMount = True)
@@ -136,7 +139,7 @@ def stringencyIterate(template, primer_type, useExtRegion = False):
   #If still not returning a primer (for non-mount primers), the sequence will be NA
   if success == False:
 
-    print("Could not find a primer at any stringency levels.")
+    print("Could not find a primer at any stringency levels.") #don't want this every time
     potential_primers = "NA"
     stringency = "none"
   
