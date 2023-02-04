@@ -88,8 +88,11 @@ def designPrimers(stringency, primer_type, template, useExtendedRegion = False):
         'PRIMER_MAX_POLY_X': s["max_polyx"],
     })
   
+  #Filter the results dictionary for the keys explaining the number of primers returned
+  primersReturnedCount = {k:v for (k,v) in primer3Results.items() if "NUM_RETURNED" in k}
+  
   #return success = False (no primer found), or success = True, and the primers found
-  if all(x == 0 for x in primer3Results.values()) == True: #this is the output format if no primers are found
+  if all(x == 0 for x in primersReturnedCount.values()) == True: #this is the output format if no primers are found
     success = False
     potential_primers = "NA"
   else: #if primers were found, compile these sequences into a list
@@ -99,7 +102,7 @@ def designPrimers(stringency, primer_type, template, useExtendedRegion = False):
       if columnName.endswith("SEQUENCE"):
         potential_primers.append(primer3Results[columnName])
 
-    return success, potential_primers
+  return success, potential_primers
 
 def stringencyIterate(template, primer_type, useExtRegion = False):
   """
@@ -117,8 +120,9 @@ def stringencyIterate(template, primer_type, useExtRegion = False):
   success = False
 
     #iterate through stringencies
-  for stringency in range(0,2):
+  for stringency in range(0,3):
     success, potential_primers = designPrimers(stringency, primer_type, template, useExtendedRegion = useExtRegion)
+    
     if success == True and primer_type == "HAL-R" or primer_type =="HAR-F": #check mounting for special case
       potential_primers = mountedPrimers(primer_type, potential_primers, template)
 
@@ -138,7 +142,6 @@ def stringencyIterate(template, primer_type, useExtRegion = False):
 
   #If still not returning a primer (for non-mount primers), the sequence will be NA
   if success == False:
-
     print("Could not find a primer at any stringency levels.") #don't want this every time
     potential_primers = "NA"
     stringency = "none"
@@ -189,7 +192,7 @@ def mountedPrimers(primer_type, potential_primers, template, makeMount = False):
   
   return mountedPrimer
 
-def addSixPrimers(template, useExtendedRegion = False, blastSkip = {}):
+def addSixPrimers(template, useExtendedRegion = False, blastSkip = {"VAL-F": 0, "HAL-F": 0, "HAL-R": 0, "HAR-F": 0, "HAR-R": 0, "VAL-R": 0}):
   """
   Find sequences for each of the six primers needed per transcript per start/stop region.
 
@@ -203,26 +206,26 @@ def addSixPrimers(template, useExtendedRegion = False, blastSkip = {}):
     sixPrimers: the six primer sequences as a list of strings.
 
   """
-  primersNeeded = ["VAL-F", "HAL-F", "HAL-R", "HAR-F", "HAR-R", "VAL-R"]
+  primersNeeded = list(blastSkip.keys())
 
   #setting up lists for desired output
   sixPrimers = []
   stringencyList = []
 
   #Obtain each of the 6 primers one by one
-  for primer_type in primersNeeded:
+  for primerType in primersNeeded:
     #Note here that potential_primers could be NA, many primers, or a single primer in a list
-    stringency, potential_primers = stringencyIterate(template, primer_type, useExtRegion = useExtendedRegion)
+    stringency, potential_primers = stringencyIterate(template, primerType, useExtRegion = useExtendedRegion)
 
     #Record the stringency used per primer type
     stringencyList.append(stringency)
 
     #If BLAST has indicated that we need to skip primers, blastSkip will increase in value for that primer type and this will call the next primer along in potential_primers.
-    if blastSkip[primer_type] > len(primer_type):
+    if blastSkip[primerType] > len(potential_primers):
       sixPrimers.append("NA")
       print("All potential primers have failed the BLAST check.")
     else:
-      sixPrimers.append(potential_primers[blastSkip[primer_type]])
+      sixPrimers.append(potential_primers[blastSkip[primerType]])
 
   return stringencyList, sixPrimers
 
@@ -277,6 +280,7 @@ def BLASTSixPrimers(sixPrimers, chromosome):
 
   import pandas as pd
   from Bio import SeqIO
+  from Bio.Seq import Seq
 
   #This corresponds to the order of the list, sixPrimers
   primerTypes = ["VAL-F", "HAL-F", "HAL-R", "HAR-F", "HAR-R", "VAL-R"]
@@ -289,12 +293,15 @@ def BLASTSixPrimers(sixPrimers, chromosome):
   else:
       transgenicRefFile = SeqIO.parse("inputfiles/dmel6-nos-Cas9_on_3.fasta", "fasta")    
 
+  fullTransgenicRefSequence = ""
   for fasta in transgenicRefFile:
-      if fasta.id == chromosome:
-          transgenicRefSequence = fasta.seq
+      currentSequence = fasta.seq
+      fullTransgenicRefSequence += f"{currentSequence} "
+      reverseComp = currentSequence.reverse_complement()
+      fullTransgenicRefSequence += f"{reverseComp} "
 
   for primer in sixPrimers:
-      BLASTcount = transgenicRefSequence.count(primer)
+      BLASTcount = fullTransgenicRefSequence.count(primer)
       if BLASTcount != 1:
           faultyPrimers.append(primerTypes[sixPrimers.index(primer)])
       else:
@@ -302,7 +309,7 @@ def BLASTSixPrimers(sixPrimers, chromosome):
 
   return faultyPrimers
 
-def finalPrimersdf(TFsdf, returnParameters = False):
+def finalPrimersdf(TFsdf, outputFile, returnParameters = False):
   """
   Compile all primers for transcription factors.
 
@@ -314,26 +321,28 @@ def finalPrimersdf(TFsdf, returnParameters = False):
     TFsdf: a dataframe of primer information.
 
   """
-  #Start blank columns for the primers we need to add per transcript per start/stop (so for every row in TFsdf)
   import pandas as pd
 
-  #This will contain all primers identified by primer type (6 columns)
+  #Start blank columns for the primers we need to add per transcript per start/stop (so for every row in TFsdf)
   allPrimers = pd.DataFrame(columns = ["VAL-F", "HAL-F", "HAL-R", "HAR-F", "HAR-R", "VAL-R"])
   if returnParameters == True: #Additional metrics will be provided in the dataframe if the user requests this.
-    allPrimers[["Stringency Level", "Extended Region Used", "Number of Primers BLAST Excluded"]]
-  else: #Otherwise, a truncated TFs information list is returned (Transcript_ID, Gene_Region)
-    TFsdf = TFsdf.drop(["Gene_ID", "Gene_Symbol", "Transcript_ID", "Chromosome", "Start", "Stop", "Strand", "Reference_Seq"])
+    allPrimers[["Stringency Level", "Extended Region Used", "Number of Primers BLAST Excluded"]] = ""
 
   for index, row in TFsdf.iterrows():
-    blastSkip, stringencyList, extended, sixPrimers = checkSixPrimers(row["Reference_Seq"], row.at[index, "Chromosome"])
+    blastSkip, stringencyList, extended, sixPrimers = checkSixPrimers(row["Reference_Seq"], row["Chromosome"])
     if returnParameters == False:    
       allPrimers.loc[len(allPrimers)] = sixPrimers
     else:
-      fullResults = sixPrimers + stringencyList + extended + blastSkip
+      fullResults = sixPrimers + [stringencyList] + [str(extended)] + [blastSkip]
       allPrimers.loc[len(allPrimers)] = fullResults
+
+  #Remove no longer needed TFdfs columns
+  TFsdf = TFsdf.drop(columns = ["Gene_ID", "Gene_Symbol", "Transcript_ID", "Chromosome", "Start", "Stop", "Strand", "Reference_Seq"])
 
   #Add primer sequence df to original (or truncated) TFsdf
   TFsdf = TFsdf.join(allPrimers)
+
+  TFsdf.to_excel(outputFile)
 
   return TFsdf
 
