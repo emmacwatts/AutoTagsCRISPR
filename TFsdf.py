@@ -72,7 +72,7 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Transcript_Symbol", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
 
     #Add reference genome sequence per gene region
-    #This will correspond to 1.7kb upstream and downstream of ATG/stop codon 
+    #This will correspond to 1.6kb upstream and downstream of ATG/stop codon 
     TFsdf = TFsdf.assign(Reference_Seq = "")
 
     for index, rowcontents in TFsdf.iterrows():
