@@ -36,4 +36,4 @@ Latest versions of biopython, primer3-py, pandas, and tqdm.
 
 ## Primers function update - key information sheet
 
-![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10701971/CRISPR.primers.workflow.pdf)
+![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706002/CRISPR.primers.workflow.pdf)
