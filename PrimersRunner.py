@@ -6,7 +6,7 @@ import PrimerFunctions as p
 import pandas as pd
 import time
 
-TFsdf = pd.read_excel("inputfiles/mockMaterials/TFsdf1392-3503.xlsx", index_col = 0)
-outputFile = "inputfiles/mockMaterials/TFsoutputcontinued.xlsx"
+TFsdf = pd.read_excel("inputfiles/mockMaterials/TFsdf.xlsx", index_col = 0)
+outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"
 
 faultyPrimers= p.finalPrimersdf(TFsdf, outputFile, returnParameters= True)
