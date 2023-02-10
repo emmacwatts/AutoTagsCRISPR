@@ -1,13 +1,12 @@
 #Calculates all primers
 
-import NprimerFunctions as n
+import PrimerFunctions as p
 
 #Chromosome X results
 import pandas as pd
 import time
 
-TFsXonly = pd.read_excel("inputfiles/mockMaterials/TFsdf.xlsx", index_col = 0)
-outputFile = "inputfiles/mockMaterials/finalTFsdfwithPrimers.xlsx"
+TFsdf = pd.read_excel("inputfiles/mockMaterials/TFsdf1392-3503.xlsx", index_col = 0)
+outputFile = "inputfiles/mockMaterials/TFsoutputcontinued.xlsx"
 
-faultyPrimers= n.finalPrimersdf(TFsXonly, outputFile, returnParameters= True)
-
+faultyPrimers= p.finalPrimersdf(TFsdf, outputFile, returnParameters= True)

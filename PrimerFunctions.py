@@ -49,11 +49,18 @@ def designPrimers(stringency, primer_type, template, useExtendedRegion = False):
   primerNameandRegiondf = primerNameandRegiondf.loc[primer_type]
   p = primerNameandRegiondf.to_dict()
 
+  #Check for shorter templates (if this gene region is near the end of the chromosome, might be missing a few bases)
+  if len(template) == 3203:
+     extendedLength = p["extended_region_length"]
+  else:
+     missingRefSeqbases = 3203 - len(template)
+     extendedLength = p["extended_region_length"] - missingRefSeqbases
+
   #Define whether to use the intial search region or extended search region
   if useExtendedRegion == False:
     gene_region = [p["initial_region_start"], p["initial_region_length"]]
   else:
-    gene_region = [p["extended_region_start"], p["extended_region_stop"]]
+    gene_region = [p["extended_region_start"], extendedLength]
 
   primer3Results = p3.bindings.designPrimers(
     {
