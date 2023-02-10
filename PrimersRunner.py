@@ -9,4 +9,4 @@ import time
 TFsdf = pd.read_excel("inputfiles/mockMaterials/TFsdf.xlsx", index_col = 0)
 outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"
 
-faultyPrimers= p.finalPrimersdf(TFsdf, outputFile, returnParameters= True)
+p.finalPrimersdf(TFsdf, outputFile, returnParameters= True)
