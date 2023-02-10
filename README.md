@@ -33,3 +33,7 @@ This contains the input and advice files we were provided with. Note that .fasta
 ## Dependencies
 
 Latest versions of biopython, primer3-py, pandas, and tqdm.
+
+## Primers function update - key information sheet
+
+![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706002/CRISPR.primers.workflow.pdf)
