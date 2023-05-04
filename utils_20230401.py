@@ -348,7 +348,7 @@ def check_start_stop_NGG(df):
                 # return a dictionary with the sequence and the position of the selected sgRNA and the note that the PAM must not be mutated in the HDR plasmid
 
                 df["sgRNA_list_values"]=df["sgRNA_list_values"][i]
-                df["sgRNA_list_positions"]=[df["sgRNA_list_positions"][i]]
+                df["sgRNA_list_positions"]=df["sgRNA_list_positions"][i]
                 df["must_PAM_be_mutated_in_HDR_plasmid?"] = "no"
                 
                 return df
@@ -362,7 +362,7 @@ def check_start_stop_NGG(df):
                 # return a dictionary with the sequence and the position of the selected sgRNA and the note that the PAM must not be mutated in the HDR plasmid
 
                 df["sgRNA_list_values"]=df["sgRNA_list_values"][i]
-                df["sgRNA_list_positions"]=[df["sgRNA_list_positions"][i]]
+                df["sgRNA_list_positions"]=df["sgRNA_list_positions"][i]
                 df["must_PAM_be_mutated_in_HDR_plasmid?"] = "no"
                 
                 return df
@@ -516,7 +516,7 @@ def select_closest(df):
     if len(indexes_smallest_distance) == 1:
 
         df["sgRNA_list_values"]=list_of_val[indexes_smallest_distance[0]]
-        df["sgRNA_list_positions"]=[list_of_pos[indexes_smallest_distance[0]]]
+        df["sgRNA_list_positions"]=list_of_pos[indexes_smallest_distance[0]]
 
         return df
 
