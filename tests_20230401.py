@@ -9,6 +9,7 @@ from utils_20230401 import find_synonymous_codons
 from utils_20230401 import mutate_PAM_in_codon
 from utils_20230401 import make_synonymous_mutation
 from utils_20230401 import translate_nucleotide_position_into_codon_position
+from utils_20230401 import mutate_PAM_in_HDR_primer
 from os import sys
 
 def test_revComp():
