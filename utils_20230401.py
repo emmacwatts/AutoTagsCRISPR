@@ -331,7 +331,7 @@ def check_start_stop_NGG(df):
             "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
         }
 
-'''
+    '''
     # loop through list of sgRNAs
 
     for i in range(0,len(df["sgRNA_list_values"])):
@@ -389,8 +389,8 @@ def check_over_15(df):
     returns: same dictionary as in params but only with sgRNAs listed in "sgRNA_list_positions" and "sgRNA_list_values" that fulfil the condition
     
     '''
-    start_pos = df["genome_start_codon_pos"][0]
-    stop_pos = df["genome_stop_codon_pos"][0]
+    start_pos = df["genome_start_codon_pos"]
+    stop_pos = df["genome_stop_codon_pos"]
 
     list_of_max_15=[]
     list_of_max_15_pos=[]
@@ -422,9 +422,6 @@ def check_over_15(df):
         # if no, store the sequence and position of the sgRNA in the respective list
 
         else:
-
-            print(type(df["sgRNA_list_positions"][i][1]))
-            print(stop_pos)
 
             if 0 < df["sgRNA_list_positions"][i][1] - 2 - stop_pos < 16:
 
@@ -488,13 +485,13 @@ def select_closest(df):
         
         if df["start/stop"]=="start_codon":
 
-            start_codon_pos=df["genome_start_codon_pos"][0]
+            start_codon_pos=df["genome_start_codon_pos"]
 
             dist=abs(cutting_pos-start_codon_pos)
 
         else:
             
-            stop_codon_pos=df["genome_stop_codon_pos"][0]
+            stop_codon_pos=df["genome_stop_codon_pos"]
 
             dist=abs(cutting_pos-stop_codon_pos)
 
@@ -513,19 +510,31 @@ def select_closest(df):
     # if there is only one sgRNA that has the shortest distance from start/ stop, store the sequence and position of this sgRNA
     # return a dictionary for this sgRNA with the shortest distance
     
-    if len(indexes_smallest_distance) == 1:
+    if 0 < len(indexes_smallest_distance) <= 2:
 
         df["sgRNA_list_values"]=list_of_val[indexes_smallest_distance[0]]
         df["sgRNA_list_positions"]=list_of_pos[indexes_smallest_distance[0]]
 
-        return df
+    elif len(indexes_smallest_distance) == 0:
+
+        print("Error! There was no sgRNA found that is the closest to the cutting site.")
+
+        sys.exit()
+
+        df = {}
+
+    elif len(indexes_smallest_distance) > 2:
+
+        print("Error! More than two sgRNA were found that are the closest to the cutting site.")
+
+        sys.exit()
+
+        df = {}
 
     # if there is two sgRNAs with the shortest distance between the start/ stop codon and the cutting site, print an error
     # before running the function select_closest(), the correct side of the cutting site relative to the start/ stop codon should be chosen
-    
-    else: 
 
-        return
+    return df
 
 def check_cutting_site_inside_CDS(df):
 
@@ -561,7 +570,7 @@ def check_cutting_site_inside_CDS(df):
         
         if df["start/stop"]=="start_codon":
 
-            start_codon_pos=df["genome_start_codon_pos"][0]
+            start_codon_pos=df["genome_start_codon_pos"]
 
             if cutting_pos < start_codon_pos:
 
@@ -571,7 +580,7 @@ def check_cutting_site_inside_CDS(df):
 
         else:
             
-            stop_codon_pos=df["genome_stop_codon_pos"][0]
+            stop_codon_pos=df["genome_stop_codon_pos"]
 
             if cutting_pos < stop_codon_pos:
 
@@ -640,42 +649,50 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
         selected_codon: string, codon that is the same as the query codon apart from one G, which also encodes for the same amino acid as the query codon.
     '''
 
-    list_query_codon = list(query_codon)
+    if synonymous_codons:
+
+        list_query_codon = list(query_codon)
     
-    if list_query_codon[2] == 'G':
+        if list_query_codon[2] == 'G':
 
-        for synonymous_codon in synonymous_codons:
+            for synonymous_codon in synonymous_codons:
 
-            list_synonymous_codon = list(synonymous_codon)
+                list_synonymous_codon = list(synonymous_codon)
 
-            if list_synonymous_codon[2] != 'G':
+                if list_synonymous_codon[2] != 'G':
 
-                selected_codon = synonymous_codon
+                    selected_codon = synonymous_codon
 
-                break
+                    break
 
-            else: selected_codon = ''
-    
-    elif list_query_codon[0] == 'G':
+                else: selected_codon = ''
+        
+        elif list_query_codon[0] == 'G':
 
-        for synonymous_codon in synonymous_codons:
+            for synonymous_codon in synonymous_codons:
 
-            list_synonymous_codon = list(synonymous_codon)
+                list_synonymous_codon = list(synonymous_codon)
 
-            if list_synonymous_codon[0] != 'G':
+                if list_synonymous_codon[0] != 'G':
 
-                selected_codon = synonymous_codon
+                    selected_codon = synonymous_codon
 
-                break
+                    break
 
-            else: selected_codon = ''
+                else: selected_codon = ''
+
+        else: 
+
+            print('There is no synonymous codon that can be used to mutate the PAM. Searching for other sgRNAs.')
+
+            selected_codon = ''
 
     else: 
 
         print('There is no synonymous codon that can be used to mutate the PAM. Searching for other sgRNAs.')
 
         selected_codon = ''
-    
+        
     return selected_codon
 
 
@@ -747,9 +764,19 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
 
     from os import sys
 
+    if df["start/stop"] == "start_codon":
+
+        pos_of_interest = df["genome_start_codon_pos"]
+
+    elif df["start/stop"] == "stop_codon":
+        
+        pos_of_interest = df["genome_stop_codon_pos"] 
+
+    codon_table_excel = "inputfiles/codon_table.xlsx"
+
     # check whether PAM in HAL-R
 
-    if 0 >= df["sgRNA_list_pos"][1] - 2 - stop_pos:
+    if 0 >= df["sgRNA_list_positions"][1] - 2 - pos_of_interest:
 
         PAM_pos = HAL_R.find("GG")
 
@@ -757,13 +784,15 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
 
         if PAM_pos == -1:
 
-            print("Error! No GG found in HAR-F even though PAM should be located in HAR-F")
+            print(HAL_R, df)
+
+            print("Error! No GG found in HAL-R even though PAM should be located in HAL-R")
 
             sys.exit()
         
         else: 
 
-            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos)
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
 
             if mutated_HAL_R:
 
@@ -772,7 +801,7 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
 
     # check whether PAM in HAR-F
     
-    elif df["sgRNA_list_pos"][1] - 2 - stop_pos >= 16:
+    elif df["sgRNA_list_positions"][1] - 2 - pos_of_interest >= 16:
 
         # sanity check since funtion x.find() returns -1 if string is not found
 
@@ -786,7 +815,7 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
 
         else: 
 
-            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos)
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel)
 
             if mutated_HAR_F:
 
@@ -873,6 +902,9 @@ def find_best_gRNA(df):
             if len(max_15_sgRNA["sgRNA_list_values"]) == 1:
 
                 winner_sgRNA == tagged_sgRNA
+
+                winner_sgRNA["sgRNA_list_values"]=winner_sgRNA["sgRNA_list_values"][0]
+                winner_sgRNA["sgRNA_list_positions"]=winner_sgRNA["sgRNA_list_positions"][0]
             
             # if multiple sgRNAs fulfil this condition, check if sgRNAs cut inside the CDS and whose cutting sites are closest to the start/ stop
             # return the most ideal sgRNA
@@ -905,6 +937,9 @@ def find_best_gRNA(df):
 
                 winner_sgRNA = more_than_15_sgRNA
 
+                winner_sgRNA["sgRNA_list_values"]=winner_sgRNA["sgRNA_list_values"][0]
+                winner_sgRNA["sgRNA_list_positions"]=winner_sgRNA["sgRNA_list_positions"][0]
+
                 #@TODO: write the retrieve_HDR_arm() function
 
                 # check whether primers output delivers HDR arm
@@ -936,6 +971,10 @@ def find_best_gRNA(df):
                 if len(checked_cutting_inside_CDS_sgRNA)== 1:
 
                     winner_sgRNA = checked_cutting_inside_CDS_sgRNA
+
+                    winner_sgRNA["sgRNA_list_values"]=winner_sgRNA["sgRNA_list_values"][0]
+                    winner_sgRNA["sgRNA_list_positions"]=winner_sgRNA["sgRNA_list_positions"][0]
+            
 
                     #@TODO: write the retrieve_HDR_arm() function
 

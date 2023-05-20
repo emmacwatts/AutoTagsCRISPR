@@ -19,38 +19,35 @@ import os
 
 # input file paths - adjust this accordingly
 
-sgRNA_files = ["NoOffTarget_high_stringency.gff", "NoOffTarget_med_stringency.gff", "NoOffTarget_low_stringency.gff", \
-    "1to3NonCdsOffTarget_low_stringency.gff", "ManyOffTarget_low_stringency.gff"]
-TF_names_list = "TFs_mock.xlsx"
-TF_genes_list = "TF_log_mock.csv"
-annotation = "dmel-all-r6.48.gtf"
-ref_genome = "dmel-all-chromosome-r6.48.fasta"
-transgenic_genome_chr2 = "dmel6-nos-Cas9_on_2.fasta"
-transgenic_genome_chr3 = "dmel6-nos-Cas9_on_3.fasta"
+sgRNA_files = ["inputfiles/NoOffTarget_high_stringency.gff", "inputfiles/NoOffTarget_med_stringency.gff", "inputfiles/NoOffTarget_low_stringency.gff", \
+    "inputfiles/1to3NonCdsOffTarget_low_stringency.gff", "inputfiles/ManyOffTarget_low_stringency.gff"]
+TF_names_list = "inputfiles/TFs_mock.xlsx"
+TF_genes_list = "inputfiles/TF_log_mock.csv"
+annotation = "inputfiles/dmel-all-r6.48.gtf"
+ref_genome = "inputfiles/dmel-all-chromosome-r6.48.fasta"
+transgenic_genome_chr2 = "inputfiles/dmel6-nos-Cas9_on_2.fasta"
+transgenic_genome_chr3 = "inputfiles/dmel6-nos-Cas9_on_3.fasta"
 df_sgRNA = pd.DataFrame(columns=['gene_ID','transcript_ID', 'chromosome', 'strand_type', 'start/stop', 'genome_start_codon_pos', 'genome_stop_codon_pos', 'must_PAM_be_mutated_in_HDR_plasmid?', 'cut_outside_of_CDS', 'sgRNA_type', 'sgRNA_seq', 'sgRNA_coordinates'])
 timestr = time.strftime("%Y%m%d-%H%M%S")
 start = time.time()
 
 
 # run initial testing before running the main program
-'''
+
 test_revComp()
-test_make_dataframe_from_TFs_list()
+#test_make_dataframe_from_TFs_list() # just commented out because it takes long to run
 test_filter_gRNA()
 test_check_start_stop_NGG()
 test_check_over_15()
 test_select_closest()
 test_check_cutting_site_inside_CDS()
-
 test_find_synonymous_codons()
 test_mutate_PAM_in_codon()
 test_make_synonymous_mutation()
 test_translate_nucleotide_position_into_codon_position()
-'''
-
 test_mutate_PAM_in_HDR_primer()
 
-#@TODO: write a function for this does not look pretty
+#@TODO: write a function for this - does not look pretty
 
 TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, ref_genome, annotation, transgenic_genome_chr2, transgenic_genome_chr3)
 
@@ -97,7 +94,8 @@ for TF_dict in TF_dict_of_dict:
             # printed as a table in Excel since the arrays have different length
 
             winner_gRNA["sgRNA_seq"] = winner_gRNA["sgRNA_list_values"]
-            winner_gRNA["sgRNA_coordinates"] = f'{winner_gRNA["sgRNA_list_positions"][0][0]}-{winner_gRNA["sgRNA_list_positions"][0][1]}'
+            winner_gRNA["sgRNA_start"] = winner_gRNA["sgRNA_list_positions"][0]
+            winner_gRNA["sgRNA_end"] = winner_gRNA["sgRNA_list_positions"][1]
             del winner_gRNA["sgRNA_list_values"]
             del winner_gRNA["sgRNA_list_positions"]
             df_sgRNA = df_sgRNA.append(winner_gRNA, ignore_index = True)
@@ -109,8 +107,9 @@ for TF_dict in TF_dict_of_dict:
 
             winner_gRNA = gRNA_dict
             winner_gRNA["sgRNA_type"] = sgRNA_file
-            winner_gRNA["sgRNA_seq"] = winner_gRNA["sgRNA_list_values"]
-            winner_gRNA["sgRNA_coordinates"] = f'{winner_gRNA["sgRNA_list_positions"][0][0]}-{winner_gRNA["sgRNA_list_positions"][0][1]}'
+            winner_gRNA["sgRNA_seq"] = winner_gRNA["sgRNA_list_values"][0]
+            winner_gRNA["sgRNA_start"] = winner_gRNA["sgRNA_list_positions"][0][0]
+            winner_gRNA["sgRNA_end"] = winner_gRNA["sgRNA_list_positions"][0][1]
             del winner_gRNA["sgRNA_list_values"]
             del winner_gRNA["sgRNA_list_positions"]
             print(winner_gRNA)
