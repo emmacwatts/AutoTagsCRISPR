@@ -31,12 +31,12 @@ def test_revComp():
 
 def test_make_dataframe_from_TFs_list():
 
-    TF_name = "TFs_mock.xlsx"
-    ref_gene = "dmel-all-chromosome-r6.48.fasta"
-    annotation = "dmel-all-r6.48.gtf"
-    ref_genome = "dmel-all-chromosome-r6.48.fasta"
-    transgenic_genome_chr2 = "dmel6-nos-Cas9_on_2.fasta"
-    transgenic_genome_chr3 = "dmel6-nos-Cas9_on_3.fasta"
+    TF_name = "inputfiles/TFs_mock.xlsx"
+    ref_gene = "inputfiles/dmel-all-chromosome-r6.48.fasta"
+    annotation = "inputfiles/dmel-all-r6.48.gtf"
+    ref_genome = "inputfiles/dmel-all-chromosome-r6.48.fasta"
+    transgenic_genome_chr2 = "inputfiles/dmel6-nos-Cas9_on_2.fasta"
+    transgenic_genome_chr3 = "inputfiles/dmel6-nos-Cas9_on_3.fasta"
 
     TFsdf, dataframe = make_dataframe_from_TFs_list(TF_name, ref_genome, annotation, transgenic_genome_chr2, transgenic_genome_chr3)
     
@@ -119,7 +119,7 @@ def test_filter_gRNA():
         'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
     }
 
-    sgRNA_file = "sgRNA_mock.gff"
+    sgRNA_file = "inputfiles/sgRNA_mock.gff"
 
     solution1 = {
         'Gene_ID': 'FBgn0004652',
@@ -130,7 +130,7 @@ def test_filter_gRNA():
         'Stop': 29027+19+2, 
         'Strand': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
-        'sgRNA_list_pos': [[29027,29049]],
+        'sgRNA_list_positions': [[29027, 29049]],
         'sgRNA_list_values': [19*'C'+'TAGG']
     }
 
@@ -143,7 +143,7 @@ def test_filter_gRNA():
         'Stop': 29027+19+2, 
         'Strand': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
-        'sgRNA_list_pos': [[29027,29049]],
+        'sgRNA_list_positions': [[29027, 29049]],
         'sgRNA_list_values': [19*'C'+'TAGG']
     }
 
@@ -176,12 +176,26 @@ def test_check_start_stop_NGG():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29027+19], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29027+19, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
         'sgRNA_list_positions': [[29027,29049]],
         'sgRNA_list_values': [19*'C'+'TAGG']
+    }
+
+    solution1 = {
+        'Gene_ID': 'FBgn0004652',
+        'Transcript_ID': 'FBtr0083651', 
+        'Chromosome': 'Y', 
+        'start/stop': 'stop_codon', 
+        'genome_stop_codon_pos': 29027+19, 
+        'genome_start_codon_pos': 0, 
+        'strand_type': '+', 
+        'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
+        'sgRNA_list_positions': [29027,29049],
+        'sgRNA_list_values': 19*'C'+'TAGG',
+        'must_PAM_be_mutated_in_HDR_plasmid?' : 'no'
     }
 
     TF_dict2 = {
@@ -189,8 +203,8 @@ def test_check_start_stop_NGG():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29027+19], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29027+19, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + "G" + 1599 * "C", 
         'sgRNA_list_positions': [[29027,29049]],
@@ -202,19 +216,33 @@ def test_check_start_stop_NGG():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'start_codon', 
-        'genome_stop_codon_pos': [0], 
-        'genome_start_codon_pos': [29027+19], 
+        'genome_stop_codon_pos': 0, 
+        'genome_start_codon_pos': 29027+19, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "ATG" + "G" + 1599 * "C", 
         'sgRNA_list_positions': [[29027,29049]],
         'sgRNA_list_values': [19*'C'+'ATGG']
     }
 
+    solution3 = {
+        'Gene_ID': 'FBgn0004652',
+        'Transcript_ID': 'FBtr0083651', 
+        'Chromosome': 'Y', 
+        'start/stop': 'start_codon', 
+        'genome_stop_codon_pos': 0, 
+        'genome_start_codon_pos': 29027+19, 
+        'strand_type': '+', 
+        'Reference_Seq': 1600 * "C" + "ATG" + "G" + 1599 * "C", 
+        'sgRNA_list_positions': [29027,29049],
+        'sgRNA_list_values': 19*'C'+'ATGG',
+        'must_PAM_be_mutated_in_HDR_plasmid?' : 'no'
+    }
+
     outcome1 = check_start_stop_NGG(TF_dict1)
     outcome2 = check_start_stop_NGG(TF_dict2)
     outcome3 = check_start_stop_NGG(TF_dict3)
 
-    if outcome1 == TF_dict1 and outcome3 == TF_dict3:
+    if outcome1 == solution1 and outcome3 == solution3:
 
         if not outcome2:
 
@@ -240,11 +268,11 @@ def test_check_over_15():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29049-17, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29027,29049]],
+        'sgRNA_list_positions': [[29027,29049]],
         'sgRNA_list_values': [5 * "C" + "TAG" + 12 * "C"+ "TGG"]
     }
 
@@ -255,11 +283,11 @@ def test_check_over_15():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-18], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29049-18, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 13 * "C"+ "TGG" + 1584 * "C", 
-        'sgRNA_list_pos': [[29027,29049]],
+        'sgRNA_list_positions': [[29027,29049]],
         'sgRNA_list_values': [4 * "C" + "TAG" + 13 * "C"+ "TGG"]
     }
     
@@ -270,11 +298,11 @@ def test_check_over_15():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'start_codon', 
-        'genome_stop_codon_pos': [0], 
-        'genome_start_codon_pos': [29049-17], 
+        'genome_stop_codon_pos': 0, 
+        'genome_start_codon_pos': 29049-17, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "ATG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29027,29049]],
+        'sgRNA_list_positions': [[29027,29049]],
         'sgRNA_list_values': [5 * "C" + "ATG" + 12 * "C"+ "TGG"]
     }
     
@@ -317,11 +345,11 @@ def test_select_closest():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29049-17, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29026,29049], [29027, 29050]],
+        'sgRNA_list_positions': [[29026,29049], [29027, 29050]],
         'sgRNA_list_values': [6 * "C" + "TAG" + 11 * "C"+ "TGG", 5 * "C" + "TAG" + 12 * "C"+ "TGG"]
     }
 
@@ -330,11 +358,11 @@ def test_select_closest():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29049-17, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
+        'sgRNA_list_positions': [[29004, 29027], [29002, 29025]],
         'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 11 * "C"+ "TGG"]
     }
 
@@ -343,15 +371,15 @@ def test_select_closest():
 
     if solution1["sgRNA_list_values"] == 6 * "C" + "TAG" + 11 * "C"+ "TGG":
 
-        if not solution2:
+        if solution2["sgRNA_list_values"] == 23 * "C":
 
             print("The function select_closest() is working!")
 
         else:
 
-            print("Error! There should be only one possible solution for select_closest() `\
-            as the side of the cutting site relative of the start/ stop codon should have been chosen in advance")
-
+            print("The wrong sgRNA was selected from two sgRNAs with different distances from start/stop codon. \
+            Do not run the wole pipeline until this bug in select_closest() is fixed!")
+            
             sys.exit()
 
     else: 
@@ -370,11 +398,11 @@ def test_check_cutting_site_inside_CDS():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29049-17, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
+        'sgRNA_list_positions': [[29004, 29027], [29026, 29049]],
         'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 12 * "C"+ "TGG"]
     }
 
@@ -383,11 +411,11 @@ def test_check_cutting_site_inside_CDS():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'start_codon', 
-        'genome_stop_codon_pos': [0], 
-        'genome_start_codon_pos': [29049-17], 
+        'genome_stop_codon_pos': 0, 
+        'genome_start_codon_pos': 29049-17, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "ATG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
+        'sgRNA_list_positions': [[29004, 29027], [29026, 29049]],
         'sgRNA_list_values': [23 * "C", 6 * "C" + "ATG" + 12 * "C"+ "TGG"]
     }
 
@@ -397,11 +425,11 @@ def test_check_cutting_site_inside_CDS():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'start_codon', 
-        'genome_stop_codon_pos': [0], 
-        'genome_start_codon_pos': [29049-17], 
+        'genome_stop_codon_pos': 0, 
+        'genome_start_codon_pos': 29049-17, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "ATG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027]],
+        'sgRNA_list_positions': [[29004, 29027]],
         'sgRNA_list_values': [23 * "C"]
     }
 
@@ -439,7 +467,7 @@ def test_check_cutting_site_inside_CDS():
 
 def test_find_synonymous_codons():
 
-    codon_table_excel = "codon_table.xlsx"
+    codon_table_excel = "inputfiles/codon_table.xlsx"
     codon_to_mutate = 'GGG'
 
     synonymous_codons = find_synonymous_codons(codon_to_mutate, codon_table_excel)
@@ -504,7 +532,7 @@ def test_make_synonymous_mutation():
 
     mutated_sequence_1 = "AAAAAACGT"
     mutated_sequence_2 = ""
-    codon_table_excel = "codon_table.xlsx"
+    codon_table_excel = "inputfiles/codon_table.xlsx"
 
     query_2  = make_synonymous_mutation(sequence_2, position_of_mutation_2, codon_table_excel)
 
@@ -563,18 +591,44 @@ def test_translate_nucleotide_position_into_codon_position():
 
 def test_mutate_PAM_in_HDR_primer():
 
-    df = {
+    df_1 = {
         'Gene_ID': 'FBgn0004652',
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29026, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
-        'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 12 * "C"+ "TGG"]
-    }
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C"
+        }
+    
+    df_2 = {
+        'Gene_ID': 'FBgn0004652',
+        'Transcript_ID': 'FBtr0083651', 
+        'Chromosome': 'Y', 
+        'start/stop': 'stop_codon', 
+        'genome_stop_codon_pos': 29025-16, 
+        'genome_start_codon_pos': 0, 
+        'strand_type': '+', 
+        'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C"
+        }
+
+    df_3 = {
+        'Gene_ID': 'FBgn0004652',
+        'Transcript_ID': 'FBtr0083651', 
+        'Chromosome': 'Y', 
+        'start/stop': 'stop_codon', 
+        'genome_stop_codon_pos': 29026, 
+        'genome_start_codon_pos': 0, 
+        'strand_type': '+', 
+        'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C"
+        }
 
     HAL_R_1 = 12 * "C"+ "CGG"
 
@@ -593,14 +647,14 @@ def test_mutate_PAM_in_HDR_primer():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29026, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
-        'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 12 * "C"+ "TGG"],
-        'HAR-F': 12 * "C"+ "CGT",
-        'HAL-R': 15 * "C"
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C",
+        'HAL-R': 12 * "C"+ "CGT",
+        'HAR-F': 15 * "C"
         }
 
     df_out_2 = {
@@ -608,14 +662,14 @@ def test_mutate_PAM_in_HDR_primer():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29025-16, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
-        'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 12 * "C"+ "TGG"],
-        'HAR-F': 15 * "C",
-        'HAL-R': 12 * "C"+ "CGT"
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C",
+        'HAL-R': 15 * "C",
+        'HAR-F': 12 * "C"+ "CGT"
         }
 
     df_out_3 = {
@@ -623,17 +677,17 @@ def test_mutate_PAM_in_HDR_primer():
         'Transcript_ID': 'FBtr0083651', 
         'Chromosome': 'Y', 
         'start/stop': 'stop_codon', 
-        'genome_stop_codon_pos': [29049-17], 
-        'genome_start_codon_pos': [0], 
+        'genome_stop_codon_pos': 29026, 
+        'genome_start_codon_pos': 0, 
         'strand_type': '+', 
         'Reference_Seq': 1600 * "C" + "TAG" + 12 * "C"+ "TGG" + 1585 * "C", 
-        'sgRNA_list_pos': [[29004, 29027], [29026, 29049]],
-        'sgRNA_list_values': [23 * "C", 6 * "C" + "TAG" + 12 * "C"+ "TGG"],
+        'sgRNA_list_positions': [29004, 29027],
+        'sgRNA_list_values': 23 * "C"
     }
 
-    mutated_primer_1 = mutate_PAM_in_HDR_primer(df, HAL_R_1, HAR_F_1)
-    mutated_primer_2 = mutate_PAM_in_HDR_primer(df, HAL_R_2, HAR_F_2)
-    mutated_primer_3 = mutate_PAM_in_HDR_primer(df, HAL_R_3, HAR_F_3)  
+    mutated_primer_1 = mutate_PAM_in_HDR_primer(HAL_R_1, HAR_F_1, df_1)
+    mutated_primer_2 = mutate_PAM_in_HDR_primer(HAL_R_2, HAR_F_2, df_2)
+    mutated_primer_3 = mutate_PAM_in_HDR_primer(HAL_R_3, HAR_F_3, df_3)  
 
     if mutated_primer_1 == df_out_1:
 
@@ -646,13 +700,19 @@ def test_mutate_PAM_in_HDR_primer():
             else: 
 
                 print("The function mutate_PAM_in_HDR_primer() is returning mutated primer even though there is no synonymous codon for the PAM codon")
+
+                sys.exit()
             
         else:
             
             print("The function mutate_PAM_in_HDR_primer() is returning the wrong mutated primer for PAM in the HAR_F")
 
+            sys.exit()
+
     else:
     
         print("The function mutate_PAM_in_HDR_primer() is returning the wrong mutated primer for PAM in the HAL_R")
+
+        sys.exit()
 
     
