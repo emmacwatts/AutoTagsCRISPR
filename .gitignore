@@ -1,6 +1,7 @@
 #Emma - ignore my working files
 /runnerSoFar.py
 /indepCode/FormattingTFsdf_and_BLASTcheck.ipynb
+runner.ipynb
 
 #Files that are too big to go into GitHub from inputfiles
 /inputfiles/dmel-all-chromosome-r6.48.fasta
