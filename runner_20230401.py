@@ -12,7 +12,7 @@ from tests_20230401 import test_find_synonymous_codons
 from tests_20230401 import test_mutate_PAM_in_codon
 from tests_20230401 import test_make_synonymous_mutation
 from tests_20230401 import test_translate_nucleotide_position_into_codon_position
-from tests_20230401 import test_mutate_PAM_in_HDR_primer
+from tests_20230401 import test_mutate_PAM_in_HDR_plasmid
 import time
 import pandas as pd
 import os
@@ -30,6 +30,7 @@ transgenic_genome_chr3 = "inputfiles/dmel6-nos-Cas9_on_3.fasta"
 df_sgRNA = pd.DataFrame(columns=['gene_ID','transcript_ID', 'chromosome', 'strand_type', 'start/stop', 'genome_start_codon_pos', 'genome_stop_codon_pos', 'must_PAM_be_mutated_in_HDR_plasmid?', 'cut_outside_of_CDS', 'sgRNA_type', 'sgRNA_seq', 'sgRNA_coordinates'])
 timestr = time.strftime("%Y%m%d-%H%M%S")
 start = time.time()
+primer_file = "inputfiles/Primers_output_GB.xlsx"
 
 
 # run initial testing before running the main program
@@ -45,7 +46,7 @@ test_find_synonymous_codons()
 test_mutate_PAM_in_codon()
 test_make_synonymous_mutation()
 test_translate_nucleotide_position_into_codon_position()
-test_mutate_PAM_in_HDR_primer()
+test_mutate_PAM_in_HDR_plasmid()
 
 #@TODO: write a function for this - does not look pretty
 
@@ -126,7 +127,7 @@ for TF_dict in TF_dict_of_dict:
     
     print("done cycling through sgRNA files")
 
-df_sgRNA.to_excel(f'output/optimal_sgRNAs_{timestr}.xlsx', index=False, header=True)
+df_sgRNA.to_excel(f'outputFiles/optimal_sgRNAs_{timestr}.xlsx', index=False, header=True)
 end = time.time()
 print("", end - start)
 print("Program finished! The program took", time.strftime("%H:%M:%S", time.gmtime(end - start)) , "to run!")

@@ -209,6 +209,9 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation, transgenic_gen
             refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
             TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
 
+    #Create fragments for the HDR-arm
+    TFsdf = make_homology_arm_fragments(TFsdf)
+
     #re-index
     TFsdf = TFsdf.reset_index()
     del TFsdf["index"]
@@ -602,6 +605,22 @@ def check_cutting_site_inside_CDS(df):
     
     return df
 
+def make_homology_arm_fragments(tfsDF):
+    """
+    Takes in the dataframe of information about start/stop codon regions, 
+    and appends with columns for the 225 bp upstream and downstream of
+    this site (the homlogy arm fragments).
+
+    input: tfsDF - as defined in previous function and on GitHub README, with Reference_Seq 1700bp either side of the start/stop.
+    output: tfsDF appended with upstreamHA and downstreamHA
+
+    """
+
+    tfsDF["upstreamHA"] = tfsDF.Reference_Seq.str[1375:1600]
+    tfsDF["downstreamHA"] = tfsDF.Reference_Seq.str[1604:1829]
+
+    return tfsDF
+
 def find_synonymous_codons(query_codon, codon_table_excel):
 
     '''
@@ -695,7 +714,6 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
         
     return selected_codon
 
-
 def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel):
 
     '''
@@ -760,7 +778,7 @@ def translate_nucleotide_position_into_codon_position(sequence, nucleotide_posit
 
     return(count)
 
-def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
+def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
     from os import sys
 
@@ -799,6 +817,10 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
                 df["HAL-R"] = mutated_HAL_R
                 df["HAR-F"] = HAR_F
 
+            else: 
+
+                #TODO@Emma: call function mutate_sgRNA_recognition_site()
+
     # check whether PAM in HAR-F
     
     elif df["sgRNA_list_positions"][1] - 2 - pos_of_interest >= 16:
@@ -822,32 +844,37 @@ def mutate_PAM_in_HDR_primer(HAL_R, HAR_F, df):
                 df["HAR-F"] = mutated_HAR_F
                 df["HAL-R"] = HAL_R
 
+            else:
+
+                #TODO@Emma: call function mutate_sgRNA_recognition_site()
+
     return df
 
-def mutate_PAM_in_HDR_arm(HA, df):
+def mutate_sgRNA_recognition_site_in_HDR_plasmid(HAL_R, HAR_F, df):
 
-    from os import sys
-
-    PAM_pos = HA.find("GG")
-
-    # sanity check since funtion x.find() returns -1 if string is not found 
-
-    if PAM_pos == -1:
-
-        print("Error! No GG found in HAR-F even though PAM should be located in HAR-F")
-
-        sys.exit()
+    #TODO@Emma: Coding a function that synonymously mutates 2-3 bases of the HDR arm, which are not part of the PAM but of the gRNA recognition sequence (the 20 bp upstream of the PAM), if the PAM can’t be synonymously mutated
     
-    else: 
+    return
 
-        mutated_HA = make_synonymous_mutation(HA, PAM_pos)
+def retrieve_HDR_arm(df):
 
-        if mutated_HA:
-            
-            df["HA"] = mutated_HA
+    """
+    Accesses the HDR arm fragment from the dataframe with the start/ stop information about the transcription factors
+    
+    params: 
+            df: dataframe with start/stop information about the transcription factors
+        
+    returns: 
+            fragment: fragment to synthesize for obtaining the HDR arm
+    """
 
-    return df
+    HAL = df["upstreamHA"]
+    HAR = df["downstreamHA"] 
 
+    return HAL, HAR
+
+def retrieve_primer(primer_file, df):
+    return
 
 def find_best_gRNA(df):
 
@@ -940,25 +967,39 @@ def find_best_gRNA(df):
                 winner_sgRNA["sgRNA_list_values"]=winner_sgRNA["sgRNA_list_values"][0]
                 winner_sgRNA["sgRNA_list_positions"]=winner_sgRNA["sgRNA_list_positions"][0]
 
-                #@TODO: write the retrieve_HDR_arm() function
+                # check whether the original dataframe contains HDR arm fragment
 
-                # check whether primers output delivers HDR arm
+                #TODO@Marina: get rid of this there will always be an HDR fragment, the question is can it be synthesized
 
-                HDR_arm = retrieve_HDR_arm(primer_file, TF)
+                #HAL, HAR = retrieve_HDR_arm(winner_sgRNA)
 
-                if HDR_arm:
+                #mutated_winner = mutate_PAM_in_HDR_plasmid(HAL, HAR, winner_sgRNA)
+
+                #if mutated_winner:
 
                     # if the primers output delivers an HDR arm, then mutate the HDR arm
 
-                    mutate_PAM_in_HDR_arm(HDR_arm, winner_sgRNA)
+                   #winner_sgRNA = mutated_winner
 
-                else:
+                #else:
 
                     # if the primers output does not deliver an HDR arm, then mutate the primer for the HDR arm if possible
 
-                    HAL_R, HAR_F = retrieve_primer(primer_file, TF)
+                    #HAL_R, HAR_F = retrieve_primer(primer_file, TF)
 
-                    mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df)
+                    #mutated_winner = mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df)
+
+                    #if not mutated_winner:
+
+                        #print("Neither the HDR-arm nor the primers could be mutated!")
+
+                        #winner_sgRNA = {}
+
+                        #break
+
+                    #else: 
+
+                        #winner_sgRNA = mutated_winner
             
             # if there are multiple sgRNAs, check whether they all cut inside the CDS
             
@@ -980,17 +1021,17 @@ def find_best_gRNA(df):
 
                     # check whether primers output delivers HDR arm
 
-                    if retrieve_HDR_arm():
+                    #if retrieve_HDR_arm():
 
                         # if the primers output delivers an HDR arm, then mutate the HDR arm
 
-                        mutate_PAM_in_HDR_arm()
+                        #mutate_PAM_in_HDR_arm()
 
-                    else:
+                    #else:
 
                         # if the primers output does not deliver an HDR arm, then mutate the primer in the HDR arm if possible
 
-                        mutate_PAM_in_HDR_plasmid()
+                        #mutate_PAM_in_HDR_plasmid()
 
                 # if there are multiple sgRNAs that cut insite the CDS, return the one whose cutting site is closest to start/ stop
 
@@ -1002,17 +1043,17 @@ def find_best_gRNA(df):
 
                     # check whether primers output delivers HDR arm
 
-                    if retrieve_HDR_arm():
+                    #if retrieve_HDR_arm():
 
                         # if the primers output delivers an HDR arm, then mutate the HDR arm
 
-                        mutate_PAM_in_HDR_arm()
+                        #mutate_PAM_in_HDR_arm()
 
-                    else:
+                    #else:
 
                         # if the primers output does not deliver an HDR arm, then mutate the primer in the HDR arm if possible
 
-                        mutate_PAM_in_HDR_plasmid()
+                        #mutate_PAM_in_HDR_plasmid()
 
             elif len(more_than_15_sgRNA) < 1: 
 
