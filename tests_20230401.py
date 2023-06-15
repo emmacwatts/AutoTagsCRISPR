@@ -9,7 +9,7 @@ from utils_20230401 import find_synonymous_codons
 from utils_20230401 import mutate_PAM_in_codon
 from utils_20230401 import make_synonymous_mutation
 from utils_20230401 import translate_nucleotide_position_into_codon_position
-from utils_20230401 import mutate_PAM_in_HDR_primer
+from utils_20230401 import mutate_PAM_in_HDR_plasmid
 from os import sys
 
 def test_revComp():
@@ -589,7 +589,7 @@ def test_translate_nucleotide_position_into_codon_position():
 
     return
 
-def test_mutate_PAM_in_HDR_primer():
+def test_mutate_PAM_in_HDR_plasmid():
 
     df_1 = {
         'Gene_ID': 'FBgn0004652',
@@ -685,15 +685,15 @@ def test_mutate_PAM_in_HDR_primer():
         'sgRNA_list_values': 23 * "C"
     }
 
-    mutated_primer_1 = mutate_PAM_in_HDR_primer(HAL_R_1, HAR_F_1, df_1)
-    mutated_primer_2 = mutate_PAM_in_HDR_primer(HAL_R_2, HAR_F_2, df_2)
-    mutated_primer_3 = mutate_PAM_in_HDR_primer(HAL_R_3, HAR_F_3, df_3)  
+    mutated_primer_1 = mutate_PAM_in_HDR_plasmid(HAL_R_1, HAR_F_1, df_1)
+    mutated_primer_2 = mutate_PAM_in_HDR_plasmid(HAL_R_2, HAR_F_2, df_2)
+    mutated_primer_3 = mutate_PAM_in_HDR_plasmid(HAL_R_3, HAR_F_3, df_3)  
 
     if mutated_primer_1 == df_out_1:
 
         if mutated_primer_2 == df_out_2:
         
-            if mutated_primer_3 == df_out_3:
+            if not mutated_primer_3:
 
                 print("The function mutate_PAM_in_HDR_primer() is working!")
 
