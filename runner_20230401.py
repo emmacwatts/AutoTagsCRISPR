@@ -49,7 +49,7 @@ test_translate_nucleotide_position_into_codon_position()
 test_mutate_PAM_in_HDR_plasmid()
 
 #@TODO: write a function for this - does not look pretty
-
+'''
 TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, ref_genome, annotation, transgenic_genome_chr2, transgenic_genome_chr3)
 
 for TF_dict in TF_dict_of_dict:
@@ -131,3 +131,4 @@ df_sgRNA.to_excel(f'outputFiles/optimal_sgRNAs_{timestr}.xlsx', index=False, hea
 end = time.time()
 print("", end - start)
 print("Program finished! The program took", time.strftime("%H:%M:%S", time.gmtime(end - start)) , "to run!")
+'''
