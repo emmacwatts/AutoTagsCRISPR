@@ -537,3 +537,9 @@ def finalPrimersdf(TFsdf, outputFile, returnParameters = False):
 
   return TFsdf
 
+def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta', annotation = 'inputfiles/dmel-all-r6.48.gtf', outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"):
+    import pandas as pd
+
+    TFsdf, TFsdict_of_dict = make_dataframe_from_TFs_list(TFs, refgenome, annotation)
+
+    finalPrimersdf(TFsdf, outputFile, returnParameters= True)
