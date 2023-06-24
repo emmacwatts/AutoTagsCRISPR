@@ -688,24 +688,24 @@ def test_mutate_PAM_in_HDR_plasmid():
     mutated_primer_1 = mutate_PAM_in_HDR_plasmid(HAL_R_1, HAR_F_1, df_1)
     mutated_primer_2 = mutate_PAM_in_HDR_plasmid(HAL_R_2, HAR_F_2, df_2)
     mutated_primer_3 = mutate_PAM_in_HDR_plasmid(HAL_R_3, HAR_F_3, df_3)  
-
+    
     if mutated_primer_1 == df_out_1:
 
         if mutated_primer_2 == df_out_2:
         
-            if not mutated_primer_3:
+            if mutated_primer_3 == df_out_3:
 
-                print("The function mutate_PAM_in_HDR_primer() is working!")
+                print("The function mutate_PAM_in_HDR_plasmid() is working!")
 
             else: 
 
-                print("The function mutate_PAM_in_HDR_primer() is returning mutated primer even though there is no synonymous codon for the PAM codon")
+                print("The function mutate_PAM_in_HDR_plasmid() is returning mutated primer even though there is no synonymous codon for the PAM codon")
 
                 sys.exit()
             
         else:
             
-            print("The function mutate_PAM_in_HDR_primer() is returning the wrong mutated primer for PAM in the HAR_F")
+            print("The function mutate_PAM_in_HDR_plasmid() is returning the wrong mutated primer for PAM in the HAR_F")
 
             sys.exit()
 
