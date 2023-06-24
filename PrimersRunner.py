@@ -2,11 +2,16 @@
 
 import PrimerFunctions as p
 
-#Chromosome X results
 import pandas as pd
-import time
 
-TFsdf = pd.read_excel("inputfiles/mockMaterials/TFsdf.xlsx", index_col = 0)
+TFs = 'inputfiles/TFs.xlsx'
+refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta'
+annotation = 'inputfiles/dmel-all-r6.48.gtf'
+
+TFsdf, TFsdict_of_dict = p.make_dataframe_from_TFs_list(TFs, refgenome, annotation)
+
+print (TFsdf)
+
 outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"
 
 p.finalPrimersdf(TFsdf, outputFile, returnParameters= True)

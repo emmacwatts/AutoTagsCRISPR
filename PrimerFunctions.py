@@ -14,6 +14,98 @@ def revComp(inputSeq):
 
     return revComp
 
+def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
+    '''
+    Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
+
+    Input: 
+      TFs_list: excel file of query sequences with Gene_ID and Transcript_ID
+      ref_genome: fasta file for reference genome
+      annotation: .gtf file for ref_genome
+    
+    Output
+      TFsdf: dataframe of TF information and sequences
+      TFsdict_of_dict: TFsdf as a dictionary of dictionaries per index
+    '''
+
+    import pandas as pd
+    from Bio import SeqIO
+
+    #This is the input file containing the TFs we want to query
+    #Imported as a pandas dataframe
+    queryTFsdf = pd.read_excel(TF_list)
+
+    #This is the .gtf file with annotations for each gene on the reference genome
+    refAnnotationsHeaders = ["Chromosome", "Source", "Gene_Region", "Start", "Stop", "Score", "Strand", "Frame", "Attribute"]
+    refGenomeAnnotation = pd.read_csv(annotation, sep = "\t", header = None, index_col = False, names = refAnnotationsHeaders)
+
+    #This is the FASTA file of the reference genome sequence
+    refSeqPerChromosome = {}
+    for seq in SeqIO.parse(open(ref_genome), 'fasta'):
+        refSeqPerChromosome[seq.id] = seq.seq
+    
+    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, Transcript ID, and Transcript Symbol
+    index = 0
+
+    #Add new categories to the dataframe
+    refGenomeAnnotation = refGenomeAnnotation.assign(Gene_ID = "", Gene_Symbol = "", Transcript_ID = "", Transcript_Symbol = "")
+
+    #For each attribute value, extract the gene ID and symbol and add this to the new categories
+    for attribute in refGenomeAnnotation['Attribute']:
+        fullatt = (refGenomeAnnotation.loc[index]["Attribute"]).replace(";", "")
+        fullatt = fullatt.replace('"', "")
+        fullattsplit = fullatt.split(" ")
+        refGenomeAnnotation.at[index,"Gene_ID"] = fullattsplit[1]
+        refGenomeAnnotation.at[index,"Gene_Symbol"] = fullattsplit[3]
+        if len(fullattsplit) > 4:
+            refGenomeAnnotation.at[index,"Transcript_ID"] = fullattsplit[5]
+            refGenomeAnnotation.at[index,"Transcript_Symbol"] = fullattsplit[7]
+        index+=1
+
+    #Delete Attributes category
+    del refGenomeAnnotation["Attribute"]
+
+    #Select only rows that TFs are in, and keep only the start and stop codon gene regions
+
+    refGenomeAnnotation = refGenomeAnnotation.loc[refGenomeAnnotation["Gene_Region"].isin(["start_codon", "stop_codon"])]
+
+    TFsdf = refGenomeAnnotation[["Gene_ID", "Gene_Symbol", "Transcript_ID", "Transcript_Symbol", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
+
+    #Add reference genome sequence per gene region
+    #This will correspond to 1.6kb upstream and downstream of ATG/stop codon 
+    TFsdf = TFsdf.assign(Reference_Seq = "")
+
+    for index, rowcontents in TFsdf.iterrows():
+        if rowcontents["Strand"] == "+":
+
+            #Define 2.6kb gene region
+            regionStart = rowcontents["Start"] - 1601
+            regionStop = rowcontents["Stop"] + 1600
+
+            #Add reference sequence
+            TFsdf.at[index,"Reference_Seq"] = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
+
+        if rowcontents["Strand"] == "-":
+
+            #Define 2.6kb gene region
+            regionStart = rowcontents["Start"] - 1601
+            regionStop = rowcontents["Stop"] + 1600
+
+            #Add reference sequence
+            refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
+            TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
+
+    #re-index
+    TFsdf = TFsdf.reset_index()
+    del TFsdf["index"]
+
+    #Create a dictionary of dictionaries for the df
+    TFsdict_of_dict = {}
+    for index, rowcontents in TFsdf.iterrows():
+        TFsdict_of_dict[index] = rowcontents.to_dict()
+
+    return TFsdf, TFsdict_of_dict
+
 def designPrimers(stringency, primer_type, template, useExtendedRegion = False):
  
   '''
@@ -50,7 +142,7 @@ def designPrimers(stringency, primer_type, template, useExtendedRegion = False):
   p = primerNameandRegiondf.to_dict()
 
   #Check for shorter templates (if this gene region is near the end of the chromosome, might be missing a few bases)
-  if len(template) == 3203:
+  if len(template) == 3203 or primer_type in ['HAL-F','HAL-R','HAR-F','HAR-R']:
      extendedLength = p["extended_region_length"]
   else:
      missingRefSeqbases = 3203 - len(template)
