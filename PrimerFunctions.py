@@ -528,7 +528,7 @@ def finalPrimersdf(TFsdf, outputFile, returnParameters = False):
       allPrimers.loc[len(allPrimers)] = sixprimersandParameters
 
   #Remove no longer needed TFdfs columns
-  TFsdf = TFsdf.drop(columns = ["Gene_ID", "Gene_Symbol", "Transcript_ID", "Chromosome", "Start", "Stop", "Strand", "Reference_Seq"])
+  TFsdf = TFsdf.drop(columns = ["Gene_Symbol", "Chromosome", "Start", "Stop", "Strand", "Reference_Seq"])
 
   #Merge the dataframes
   TFsdf = TFsdf.join(allPrimers)
