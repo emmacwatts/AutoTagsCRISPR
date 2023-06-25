@@ -13,10 +13,10 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
 
     if synonymous_codons:
         list_query_codon = list(query_codon)
+
         if list_query_codon[2] == 'G':
 
             for synonymous_codon in synonymous_codons:
-
                 list_synonymous_codon = list(synonymous_codon)
 
                 if list_synonymous_codon[2] != 'G':
