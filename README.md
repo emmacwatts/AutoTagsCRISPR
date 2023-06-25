@@ -38,3 +38,7 @@ Latest versions of biopython, primer3-py, pandas, and tqdm.
 
 ![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706002/CRISPR.primers.workflow.pdf)
 ![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706079/CRISPR.primers.workflow.pdf)
+
+### Note on position count
+
+positionCount in utils20230401 (mutate_sgRNA_recognition_site_in_HDR_plasmid function) indicates either 
