@@ -1,12 +1,7 @@
-#Emma - ignore my working files
-/runnerSoFar.py
-/indepCode/FormattingTFsdf_and_BLASTcheck.ipynb
-runner.ipynb
-
-
 #Files that are too big to go into GitHub from inputfiles
 /inputfiles/dmel-all-chromosome-r6.48.fasta
 /inputfiles/dmel-all-r6.48.gtf
 /inputfiles/dmel6-nos-Cas9_on_2.fasta
 /inputfiles/dmel6-nos-Cas9_on_3.fasta
 /inputfiles/Primers_output_GB.xlsx
+/inputfiles/BLASTdatabases
