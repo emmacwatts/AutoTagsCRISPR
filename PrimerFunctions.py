@@ -338,7 +338,7 @@ def BLASTprimer(primer, chromosome):
   from Bio import SeqIO
 
   #Upload transgenic reference file
-  #This will be cas_on_2 for chromosome 3, and cas_on_3 for all other chromosomes.
+  #This will becas_on_2 for chromosome 3, and cas_on_3 for all other chromosomes.
   if chromosome == 3:
       transgenicRefFile = SeqIO.parse("inputfiles/dmel6-nos-Cas9_on_2.fasta", "fasta")    
   else:
@@ -537,11 +537,59 @@ def finalPrimersdf(TFsdf, outputFile, returnParameters = False):
 
   return TFsdf
 
-def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta', annotation = 'inputfiles/dmel-all-r6.48.gtf', outputFile = "outputFiles/TFsfullOutput.xlsx"):
+def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta', annotation = 'inputfiles/dmel-all-r6.48.gtf', outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"):
+    import pandas as pd
 
-  """
-  Run all of the above functions and create the output file.
-  """
-  
-  TFsdf, TFsdict_of_dict = make_dataframe_from_TFs_list(TFs, refgenome, annotation)
-  finalPrimersdf(TFsdf, outputFile, returnParameters= True)
+    TFsdf, TFsdict_of_dict = make_dataframe_from_TFs_list(TFs, refgenome, annotation)
+
+    finalPrimersdf(TFsdf, outputFile, returnParameters= True)
+
+
+def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
+    from os import sys
+
+    if df["start/stop"] == "start_codon":
+        pos_of_interest = df["genome_start_codon_pos"]
+    elif df["start/stop"] == "stop_codon":
+        pos_of_interest = df["genome_stop_codon_pos"]
+
+    codon_table_excel = "inputfiles/codon_table.xlsx"
+
+    # check whether PAM in HAL-R
+    if 0 >= df["sgRNA_list_positions"][1] - 2 - pos_of_interest:
+        PAM_pos = HAL_R.find("GG")
+        # sanity check since funtion x.find() returns -1 if string is not found
+        if PAM_pos == -1:
+            print(HAL_R, df)
+            print("Error! No GG found in HAL-R even though PAM should be located in HAL-R")
+            sys.exit()
+
+        else:
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
+
+            if mutated_HAL_R:
+                df["HAL-R"] = mutated_HAL_R
+                df["HAR-F"] = HAR_F
+
+            else:
+                distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
+                df = mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance,
+                                                                                  codon_table_excel, df)
+    # check whether PAM in HAR-F
+    elif df["sgRNA_list_positions"][1] - 2 - pos_of_interest >= 16:
+
+        # sanity check since funtion x.find() returns -1 if string is not found
+        PAM_pos = HAR_F.find("GG")
+        if PAM_pos == -1:
+            print("Error! No GG found in HAR-F even though PAM should be located in HAR-F")
+            sys.exit()
+        else:
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel)
+            if mutated_HAR_F:
+                df["HAR-F"] = mutated_HAR_F
+                df["HAL-R"] = HAL_R
+            else:
+                distance = df["sgRNA_list_positions"][1] - 2 - pos_of_interest - 3
+                # update df
+                df = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
+    return df
