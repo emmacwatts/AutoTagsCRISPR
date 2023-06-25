@@ -618,7 +618,7 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
         
     return selected_codon
 
-def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel):
+def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel = 'inputfiles/codon_table.xlsx'):
 
     '''
     Mutates a G from the PAM in a sequence in a way, that the codon containing the G still encodes for the same amino acid.
@@ -733,7 +733,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
                 # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
                 distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
 
-                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
+                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance)
                 
                 if mutated_HAL_R:
                     
@@ -787,7 +787,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
                 distance = df["sgRNA_list_positions"][1] - 2 - pos_of_interest - 3
 
                 # try to mutate sgRNA recognition site in primer
-                mutated_HAR_F = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
+                mutated_HAR_F = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance)
 
                 if df:
                     
@@ -1080,5 +1080,3 @@ def find_best_gRNA(df):
                 sys.exit()
 
     return winner_sgRNA
-
-
