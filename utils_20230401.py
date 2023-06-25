@@ -187,10 +187,10 @@ def filter_gRNA(gRNA_file, TF_dict):
         
         if GenomeCoordinates['target_site_variation'].iloc[gRNA] == "target_site_variation=none observed" and \
         GenomeCoordinates['#chr'].iloc[gRNA] == TF_dict["Chromosome"] and \
-        int(GenomeCoordinates['fmin'].iloc[gRNA]) >= TF_dict["Start"] - 20 and \
+        int(GenomeCoordinates['fmin'].iloc[gRNA])-1 >= TF_dict["Start"] - 20 and \
         int(GenomeCoordinates['fmax'].iloc[gRNA]) <= TF_dict["Stop"] + 20:
                 
-            sgRNA_list_positions.append([int(GenomeCoordinates['fmin'].iloc[gRNA]), int(GenomeCoordinates['fmax'].iloc[gRNA])])
+            sgRNA_list_positions.append([int(GenomeCoordinates['fmin'].iloc[gRNA])-1, int(GenomeCoordinates['fmax'].iloc[gRNA])])
         
             # to retrieve the nucleotide sequence of the sgRNA, determine the distance of gRNA_start/ gRNA_stop from start/ stop codon of transcription factor
     
@@ -700,56 +700,56 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
     if 0 >= df["sgRNA_list_positions"][1] - 2 - pos_of_interest:
 
-        PAM_pos = HAL_R.find("GG")
+        PAM_pos = df["sgRNA_list_positions"][1]
+        
+        # sanity check whether las nucleotide of PAM is a G
 
-        # sanity check since funtion x.find() returns -1 if string is not found 
+        if HAL_R[PAM_pos] != "G" :
 
-        if PAM_pos == -1:
-
+            # if there was no PAM found there is a bug and the program should stop running 
+            
             print(HAL_R, df)
 
-            print("Error! No GG found in HAL-R even though PAM should be located in HAL-R")
+            print("Error! No GG or CC found in HAL-R even though PAM should be located in HAL-R")
 
             sys.exit()
-        
+
+        # try mutating the PAM in the primer/HDR fragment
+        mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
+
+        # if you were able to mutate the PAM in the primer/ fragment sequence, add mutated primer 
+        # and information about which primer was mutated to the dataframe
+        if mutated_HAL_R:
+
+            df["HAL-R"] = mutated_HAL_R
+            df["HAR-F"] = HAR_F
+            df["mutated?"] = "HAL_R"
+
+        # if you were not successful in mutating the PAM in the primer/ fragment sequence,
+        # try mutating the sgRNA recognition sequence in the primer/ fragement sequence
         else: 
 
-            # try mutating the PAM in the primer/HDR fragment
-            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
+            # calculate the distance between the start/ stop condon and the end of the PAM 
+            # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
+            distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
 
-            # if you were able to mutate the PAM in the primer/ fragment sequence, add mutated primer 
-            # and information about which primer was mutated to the dataframe
+            mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
+            
             if mutated_HAL_R:
-
-                df["HAL-R"] = mutated_HAL_R
+                
+                #if mutation was successful,  update the sgRNA dictionary with mutated primers 
+                # and add information about mutation status
                 df["HAR-F"] = HAR_F
+                df["HAL-R"] = mutated_HAL_R
                 df["mutated?"] = "HAL_R"
 
-            # if you were not successful in mutating the PAM in the primer/ fragment sequence,
-            # try mutating the sgRNA recognition sequence in the primer/ fragement sequence
-            else: 
+            else:
 
-                # calculate the distance between the start/ stop condon and the end of the PAM 
-                # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
-                distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
-
-                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
-                
-                if mutated_HAL_R:
-                    
-                    #if mutation was successful,  update the sgRNA dictionary with mutated primers 
-                    # and add information about mutation status
-                    df["HAR-F"] = HAR_F
-                    df["HAL-R"] = mutated_HAL_R
-                    df["mutated?"] = "HAL_R"
-
-                else:
-
-                    # if mutation was not successful, add information about mutation status 
-                    # and keep old unmutated primer
-                    df["HAR-F"] = HAR_F
-                    df["HAL-R"] = HAL_R
-                    df["mutated?"] = "no"
+                # if mutation was not successful, add information about mutation status 
+                # and keep old unmutated primer
+                df["HAR-F"] = HAR_F
+                df["HAL-R"] = HAL_R
+                df["mutated?"] = "no"
 
     # check whether PAM in HAR-F
     

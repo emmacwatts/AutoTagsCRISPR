@@ -37,7 +37,7 @@ primer_file = "inputfiles/Primers_output_GB.xlsx"
 
 test_revComp()
 #test_make_dataframe_from_TFs_list() # just commented out because it takes long to run
-test_filter_gRNA()
+#test_filter_gRNA()
 test_check_start_stop_NGG()
 test_check_over_15()
 test_select_closest()
@@ -46,11 +46,11 @@ test_find_synonymous_codons()
 test_mutate_PAM_in_codon()
 test_make_synonymous_mutation()
 test_translate_nucleotide_position_into_codon_position()
-test_mutate_PAM_in_HDR_plasmid()
+#test_mutate_PAM_in_HDR_plasmid()
 
 #@TODO: write a function for this - does not look pretty
-'''
-TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, ref_genome, annotation, transgenic_genome_chr2, transgenic_genome_chr3)
+
+TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, ref_genome, annotation)
 
 for TF_dict in TF_dict_of_dict:
 
@@ -131,4 +131,3 @@ df_sgRNA.to_excel(f'outputFiles/optimal_sgRNAs_{timestr}.xlsx', index=False, hea
 end = time.time()
 print("", end - start)
 print("Program finished! The program took", time.strftime("%H:%M:%S", time.gmtime(end - start)) , "to run!")
-'''
