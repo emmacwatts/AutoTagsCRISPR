@@ -714,19 +714,43 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
         
         else: 
 
+            # try mutating the PAM in the primer/HDR fragment
             mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
 
+            # if you were able to mutate the PAM in the primer/ fragment sequence, add mutated primer 
+            # and information about which primer was mutated to the dataframe
             if mutated_HAL_R:
 
                 df["HAL-R"] = mutated_HAL_R
                 df["HAR-F"] = HAR_F
+                df["mutated?"] = "HAL_R"
 
+            # if you were not successful in mutating the PAM in the primer/ fragment sequence,
+            # try mutating the sgRNA recognition sequence in the primer/ fragement sequence
             else: 
 
+                # calculate the distance between the start/ stop condon and the end of the PAM 
+                # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
                 distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
 
-                df = mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
-    
+                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
+                
+                if mutated_HAL_R:
+                    
+                    #if mutation was successful,  update the sgRNA dictionary with mutated primers 
+                    # and add information about mutation status
+                    df["HAR-F"] = HAR_F
+                    df["HAL-R"] = mutated_HAL_R
+                    df["mutated?"] = "HAL_R"
+
+                else:
+
+                    # if mutation was not successful, add information about mutation status 
+                    # and keep old unmutated primer
+                    df["HAR-F"] = HAR_F
+                    df["HAL-R"] = HAL_R
+                    df["mutated?"] = "no"
+
     # check whether PAM in HAR-F
     
     elif df["sgRNA_list_positions"][1] - 2 - pos_of_interest >= 16:
@@ -742,20 +766,44 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
             sys.exit()
 
         else: 
-
+            
+            # try mutating the PAM in the primer/ fragment sequence
             mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel)
+
+            # if you were able to mutate the PAM in the primer sequence, add mutated primer 
+            # and information about which primer was mutated to the dataframe
 
             if mutated_HAR_F:
 
                 df["HAR-F"] = mutated_HAR_F
                 df["HAL-R"] = HAL_R
+                df["mutated?"] = "HAR_F"
+
+            # if there was no synonymous mutation for the PAM, mutate the sgRNA recognition site
 
             else:
 
+                # calculate distance from the beginning of the PAM to the beginning of the start/ stop codon
                 distance = df["sgRNA_list_positions"][1] - 2 - pos_of_interest - 3
 
-                #update df
-                df = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
+                # try to mutate sgRNA recognition site in primer
+                mutated_HAR_F = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
+
+                if df:
+                    
+                    #if mutation was successful,  update the sgRNA dictionary with mutated primers 
+                    # and add information about mutation status
+                    df["HAR-F"] = mutated_HAR_F
+                    df["HAL-R"] = HAL_R
+                    df["mutated?"] = "HAR_F"
+                
+                else:
+
+                    # if mutation was not successful, add information about mutation status 
+                    # and keep old unmutated primer
+                    df["HAR-F"] = HAR_F
+                    df["HAL-R"] = HAL_R
+                    df["mutated?"] = "no"
                 
     return df
 
