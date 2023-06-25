@@ -725,7 +725,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
                 distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
 
-                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid(HAL_R, distance, codon_table_excel)
+                df = mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance, codon_table_excel, df)
     
     # check whether PAM in HAR-F
     
@@ -754,7 +754,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
                 distance = df["sgRNA_list_positions"][1] - 2 - pos_of_interest - 3
 
-                mutate_sgRNA_recognition_site_in_HDR_plasmid(HAR_F, distance, codon_table_excel)
+                df = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
                 
     return df
 
@@ -806,6 +806,7 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
     #This is the count of mutations completed in the sequence.
     mutatedCount = 0
 
+    #loop through the codons in the mutable region and mutate if possible to a maximum of three mutations.
     for position in range(0, positionsinRegion):
         mutatedSequence = make_synonymous_mutation(mutableRegion, position, codon_table_excel)
         if mutatedCount ==3:
