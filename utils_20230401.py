@@ -754,6 +754,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
                 distance = df["sgRNA_list_positions"][1] - 2 - pos_of_interest - 3
 
+                #update df
                 df = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAR_F', HAR_F, distance, codon_table_excel, df)
                 
     return df
