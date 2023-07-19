@@ -163,12 +163,12 @@ def filter_gRNA(gRNA_file, TF_dict):
     gRNAFileAnnotation = gRNAFileAnnotation.assign(target_site_variation= "")
 
     # reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
-    index = 0
+    index = 0 #TODO@Marina improve this code
 
     # for each attribute value, extract the gene ID and symbol and add this to the new categories
     for attribute in gRNAFileAnnotation['attributes']:
 
-        fullatt = (gRNAFileAnnotation.loc[index]["attributes"]).split(";")
+        fullatt = (gRNAFileAnnotation.loc[index]["attributes"]).split(";") # TODO@Marina improve this code here
         gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
         index+=1
     

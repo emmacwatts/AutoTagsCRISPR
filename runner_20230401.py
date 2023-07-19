@@ -86,7 +86,6 @@ for TF_dict in TF_dict_of_dict:
         # is executed to compare which of the sgRNAs is the most suitable one
 
         if len(gRNA_dict["sgRNA_list_values"]) > 1:
-
             winner_gRNA = find_best_gRNA(gRNA_dict)
             print(winner_gRNA)
             winner_gRNA["sgRNA_type"] = sgRNA_file
