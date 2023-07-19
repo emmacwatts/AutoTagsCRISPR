@@ -127,7 +127,7 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     return TFsdf, TFsdict_of_dict
 
-def filter_gRNA(gRNA_file, TF_dict):
+def filter_gRNA(gRNA_file, TF_dict, ref_genome):
     '''
     params:
         gRNA_file: gff file
@@ -155,6 +155,12 @@ def filter_gRNA(gRNA_file, TF_dict):
         }
     '''
     import pandas as pd
+    from Bio import SeqIO
+
+    # load the fruit fly reference genome
+    refSeqPerChromosome = {}
+    for seq in SeqIO.parse(open(ref_genome), 'fasta'):
+        refSeqPerChromosome[seq.id] = seq.seq 
 
     # create a dataframe from the gRNA files
     gRNAFileAnnotation = pd.read_csv(gRNA_file, sep = "\t", index_col = False)
@@ -168,7 +174,7 @@ def filter_gRNA(gRNA_file, TF_dict):
     # for each attribute value, extract the gene ID and symbol and add this to the new categories
     for attribute in gRNAFileAnnotation['attributes']:
 
-        fullatt = (gRNAFileAnnotation.loc[index]["attributes"]).split(";") # TODO@Marina improve this code here
+        fullatt = (attribute).split(";")
         gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
         index+=1
     
@@ -192,17 +198,9 @@ def filter_gRNA(gRNA_file, TF_dict):
                 
             sgRNA_list_positions.append([int(GenomeCoordinates['fmin'].iloc[gRNA])-1, int(GenomeCoordinates['fmax'].iloc[gRNA])])
         
-            # to retrieve the nucleotide sequence of the sgRNA, determine the distance of gRNA_start/ gRNA_stop from start/ stop codon of transcription factor
-    
-            gRNA_start_diff = abs(TF_dict["Start"] - GenomeCoordinates["fmin"].iloc[gRNA])
+            # to retrieve the nucleotide sequence of the sgRNA, load the fruit fly reference genome and extract the sequence at the genomic coordinates provided in the sgRNA file
 
-            if TF_dict["Start"] <= GenomeCoordinates["fmin"].iloc[gRNA]:
-
-                gRNA_string = TF_dict["Reference_Seq"][1600 + gRNA_start_diff : 1600 + gRNA_start_diff + 23]
-
-            else:
-                
-                gRNA_string = TF_dict["Reference_Seq"][1600 - gRNA_start_diff : 1600 - gRNA_start_diff + 23]
+            gRNA_string = str(refSeqPerChromosome[GenomeCoordinates['#chr'].iloc[gRNA]][int(GenomeCoordinates['fmin'].iloc[gRNA])-1:int(GenomeCoordinates['fmax'].iloc[gRNA])])
 
             sgRNA_list_values.append(gRNA_string)
 
