@@ -338,7 +338,7 @@ def BLASTprimer(primer, chromosome):
   from Bio import SeqIO
 
   #Upload transgenic reference file
-  #This will be cas_on_2 for chromosome 3, and cas_on_3 for all other chromosomes.
+  #This will becas_on_2 for chromosome 3, and cas_on_3 for all other chromosomes.
   if chromosome == 3:
       transgenicRefFile = SeqIO.parse("inputfiles/dmel6-nos-Cas9_on_2.fasta", "fasta")    
   else:
@@ -537,11 +537,10 @@ def finalPrimersdf(TFsdf, outputFile, returnParameters = False):
 
   return TFsdf
 
-def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta', annotation = 'inputfiles/dmel-all-r6.48.gtf', outputFile = "outputFiles/TFsfullOutput.xlsx"):
+def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-chromosome-r6.48.fasta', annotation = 'inputfiles/dmel-all-r6.48.gtf', outputFile = "inputfiles/mockMaterials/TFsfullOutput.xlsx"):
+    import pandas as pd
 
-  """
-  Run all of the above functions and create the output file.
-  """
-  
-  TFsdf, TFsdict_of_dict = make_dataframe_from_TFs_list(TFs, refgenome, annotation)
-  finalPrimersdf(TFsdf, outputFile, returnParameters= True)
+    TFsdf, TFsdict_of_dict = make_dataframe_from_TFs_list(TFs, refgenome, annotation)
+
+    finalPrimersdf(TFsdf, outputFile, returnParameters= True)
+

@@ -38,3 +38,13 @@ Latest versions of biopython, primer3-py, pandas, and tqdm.
 
 ![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706002/CRISPR.primers.workflow.pdf)
 ![image](https://github.com/emmacwatts/AutoTagsCRISPR/files/10706079/CRISPR.primers.workflow.pdf)
+
+### Note on position count
+
+positionCount in utils20230401 (mutate_sgRNA_recognition_site_in_HDR_plasmid function) indicates the number of bases in the segment highlighted in red in the two possible scenarios.
+
+![image]("https://github.com/emmacwatts/AutoTagsCRISPR/assets/120821707/09faf6d0-a22b-4d64-82d9-071158f65e63">)
+
+##Notes for meeting with S/K
+* Problem - PAM not in sgRNA sequence given - affects downstream mutation
+* Mutating PAM - would need to identify outside? or could mutate 3 codons in every case, but then primers might not work
