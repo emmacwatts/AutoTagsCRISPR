@@ -21,7 +21,7 @@ import os
 
 sgRNA_files = ["inputfiles/NoOffTarget_high_stringency.gff", "inputfiles/NoOffTarget_med_stringency.gff", "inputfiles/NoOffTarget_low_stringency.gff", \
     "inputfiles/1to3NonCdsOffTarget_low_stringency.gff", "inputfiles/ManyOffTarget_low_stringency.gff"]
-TF_names_list = "inputfiles/TFs_mock.xlsx"
+TF_names_list = "inputfiles/mockMaterials/TFs_mock.xlsx"
 TF_genes_list = "inputfiles/TF_log_mock.csv"
 annotation = "inputfiles/dmel-all-r6.48.gtf"
 ref_genome = "inputfiles/dmel-all-chromosome-r6.48.fasta"
@@ -37,7 +37,7 @@ primer_file = "inputfiles/Primers_output_GB.xlsx"
 
 test_revComp()
 #test_make_dataframe_from_TFs_list() # just commented out because it takes long to run
-#test_filter_gRNA()
+#test_filter_gRNA() # commented out because does not work due to change of function
 test_check_start_stop_NGG()
 test_check_over_15()
 test_select_closest()
@@ -77,7 +77,7 @@ for TF_dict in TF_dict_of_dict:
 
     for sgRNA_file in sgRNA_files:
 
-        gRNA_hits = filter_gRNA(sgRNA_file,single_TF_dict)
+        gRNA_hits = filter_gRNA(sgRNA_file,single_TF_dict,ref_genome)
 
         gRNA_dict["sgRNA_list_positions"] = gRNA_hits["sgRNA_list_positions"]
         gRNA_dict["sgRNA_list_values"] = gRNA_hits["sgRNA_list_values"]
