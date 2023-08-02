@@ -807,7 +807,7 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
 def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate, positionCount):
     """
-    Mutates HDR arm primer or fragment in the sgRNA recognition site in the case where PAM cannot be mutated. 2-3 mutations are made in separate amino acids.
+    Mutates HDR arm fragments in the sgRNA recognition site in the 2-3 codons closest to PAM in the case where PAM itself cannot be mutated. 1-2 mutations are made in separate amino acids.
 
     params:
         sequenceType: 'HAL-R' or 'HAR-F'
@@ -824,53 +824,53 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
             }
 
     returns:
-        mutatedSequence: string of the mutated primer/fragment sequence. If sufficient mutations were not possible, an empty string will be returned.
+        mutatedSequence: string of the mutated fragment sequence. If sufficient mutations were not possible, an empty string will be returned.
 
     """
-    #Depending on HAL-R or HAR-F, the position count will indicate the red line segments as highlighted in the READme.
+    #Define all codons in the homology arm fragment
+    allCodons = []
+    for codonStart in range(0, len(sequenceToMutate), 3):
+        allCodons.append(sequenceToMutate[codonStart:codonStart+3])
+
     if sequenceType == 'HAL-R':
-        #Trim to the end of the mutable region using the positionCount
-        mutableRegion = sequenceToMutate[:-positionCount]
-        #Trim to the beginning of the mutable region, which is 20bp from the end. If primer is less than 20bp, there is no need to do this.
-        if len(mutableRegion) > 20:
-            mutableRegion = mutableRegion[len(mutableRegion)-20:]
-
-    elif sequenceType == 'HAR-F':
-        mutableRegion = sequenceToMutate[:positionCount]
-
+        allCodons.reverse() #For HAL-R, order codons moving away from te STOP site
+    
+    #Take the 1-3 codons closest to PAM in order
+    if positionCount <= 3: #Can only attempt to mutate one codon if positionCount is less than three
+        orderedMutableCodons = {0: allCodons[0]}
+    elif positionCount <= 6: #Can only attempt to mutate two codon if positionCount is less than six
+        orderedMutableCodons = {0: allCodons[0], 1: allCodons[1]}
+    else:
+        PAMcodon = int((positionCount-1)/3) #This is the codon number that PAM is in
+        if positionCount%3 !=0:
+            orderedMutableCodons = {PAMcodon:allCodons[PAMcodon], PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} #If PAM is not in frame, take the codon that it is in and the two after that
+        else:
+            orderedMutableCodons = {PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} #If in frame, just take the 2 codons after PAM
+        
     #This is the count of mutations completed in the sequence.
     mutatedCount = 0
+    newSequence = sequenceToMutate #Make copy to avoid mutating original
 
-    #loop through the codons in the mutable region and mutate if possible to a maximum of three mutations.
-    for position in range(0, len(mutableRegion), 3):
-        #find synonymous codons will provide list of synonymous codons
-        codonOptions = find_synonymous_codons(mutableRegion[position:position+3])
+    #loop through the codons in the mutable region and mutate if possible to a maximum of two mutations.
+    for key, codon in orderedMutableCodons.items():
+        print(key, codon)
+        #find synonymous codons - will provide list of synonymous codons
+        codonOptions = find_synonymous_codons(codon)
 
         #if the list is not empty, select the first synonymous codon and replace this within the mutable region. Add 1 to mutatedCount.
         if codonOptions != []:
             newcodon = codonOptions[0]
-            mutableRegion = mutableRegion[:position] + newcodon + mutableRegion[position+3:]
+            newSequence = newSequence[:(len(allCodons)-key-1)*3] + newcodon + newSequence[(len(allCodons)-key)*3:] #replace the appropriate codon in sequenceToMutate
             mutatedCount +=1
-            print(mutatedCount)
-        #Once you reach 3, stop mutating the region
-        if mutatedCount == 3:
+        #Once you reach 2, stop mutating
+        if mutatedCount == 2:
             print(mutatedCount)
             break
 
-    #In the case that 2-3 mutations were not made in the sequence, return an empty string to show that this was not possible.
-    #Otherwise, return the mutated region.
-    if mutatedCount < 2:
-        mutatedSequence = ""
-    else: #This will re-concatenate the trimmed regions from the primer/fragment to the mutable region.
-        if sequenceType == 'HAL-R':
-            if len(mutableRegion) >20:
-                mutatedSequence = sequenceToMutate[:len(mutableRegion)-21] + mutableRegion + sequenceToMutate[-positionCount:]
-            else:
-                mutatedSequence = mutableRegion + sequenceToMutate[-positionCount:]
-        elif sequenceType == 'HAR-F':
-            mutatedSequence = mutableRegion + sequenceToMutate[positionCount:]    
-    
-    return mutatedSequence
+    if mutatedCount == 0: #If nothing was mutated, return an empty string
+        return ""
+    else:
+        return newSequence #Otherwise, return the mutated sequence
 
 def retrieve_HDR_arm(df):
 
