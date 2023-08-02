@@ -810,21 +810,12 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
     Mutates HDR arm fragments in the sgRNA recognition site in the 2-3 codons closest to PAM in the case where PAM itself cannot be mutated. 1-2 mutations are made in separate amino acids.
 
     params:
-        sequenceType: 'HAL-R' or 'HAR-F'
+        sequenceType: 'HAL-R' or 'HAR-F' (corresponding to left or right homology arm)
         sequenceToMutate: the primer/fragment sequence. If reverse primer, this should be the + strand (revComp)
-        positionCount: if 'HAL-R', this will be the distance between the end of the mutableRegion and the stop/start site. If 'HAR-F', this will be the mutable region (excluding NGG).
-        df: In format: 
-            df ={
-            "start/stop":"start"
-            'genome_start_codon_pos':400,
-            'genome_stop_codon_pos':700,
-            'strand_type':'+',
-            "sgRNA_list_positions":[401,425]
-            "sgRNA_list_values": "AAGCGACTAAAAAGTTTCCCCTCG"
-            }
+        positionCount: Distance of start/stop from PAM (excluding NGG).
 
     returns:
-        mutatedSequence: string of the mutated fragment sequence. If sufficient mutations were not possible, an empty string will be returned.
+        newSequence: The mutated HDR arm. If no mutations were not possible, an empty string will be returned.
 
     """
     #Define all codons in the homology arm fragment
@@ -842,18 +833,17 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
         orderedMutableCodons = {0: allCodons[0], 1: allCodons[1]}
     else:
         PAMcodon = int((positionCount-1)/3) #This is the codon number that PAM is in
-        if positionCount%3 !=0:
-            orderedMutableCodons = {PAMcodon:allCodons[PAMcodon], PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} #If PAM is not in frame, take the codon that it is in and the two after that
-        else:
-            orderedMutableCodons = {PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} #If in frame, just take the 2 codons after PAM
+        if positionCount%3 !=0: #If PAM is not in frame, take the codon that it is in and the two after that
+            orderedMutableCodons = {PAMcodon:allCodons[PAMcodon], PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} 
+        else: #If in frame, just take the 2 codons after PAM
+            orderedMutableCodons = {PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} 
         
     #This is the count of mutations completed in the sequence.
     mutatedCount = 0
-    newSequence = sequenceToMutate #Make copy to avoid mutating original
+    newSequence = sequenceToMutate #Make copy to avoid mutating original sequence
 
-    #loop through the codons in the mutable region and mutate if possible to a maximum of two mutations.
+    #loop through the codons and mutate if possible to a maximum of two mutations.
     for key, codon in orderedMutableCodons.items():
-        print(key, codon)
         #find synonymous codons - will provide list of synonymous codons
         codonOptions = find_synonymous_codons(codon)
 
