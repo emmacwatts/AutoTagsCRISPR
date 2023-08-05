@@ -16,6 +16,7 @@ from tests_20230401 import test_mutate_PAM_in_HDR_plasmid
 import time
 import pandas as pd
 import os
+from Bio import SeqIO
 
 # input file paths - adjust this accordingly
 
@@ -32,6 +33,11 @@ timestr = time.strftime("%Y%m%d-%H%M%S")
 start = time.time()
 primer_file = "inputfiles/Primers_output_GB.xlsx"
 
+# load the fruit fly reference genome
+#This is the FASTA file of the reference genome sequence
+refSeqPerChromosome = {}
+for seq in SeqIO.parse(open(ref_genome), 'fasta'):
+    refSeqPerChromosome[seq.id] = seq.seq 
 
 # run initial testing before running the main program
 
@@ -50,7 +56,7 @@ test_translate_nucleotide_position_into_codon_position()
 
 #@TODO: write a function for this - does not look pretty
 
-TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, ref_genome, annotation)
+TFsdf, TF_dict_of_dict = make_dataframe_from_TFs_list(TF_names_list, refSeqPerChromosome, annotation)
 
 for TF_dict in TF_dict_of_dict:
 
@@ -63,6 +69,8 @@ for TF_dict in TF_dict_of_dict:
     gRNA_dict["chromosome"] = TF_dict_of_dict[TF_dict]["Chromosome"]
     gRNA_dict["start/stop"] = TF_dict_of_dict[TF_dict]["Gene_Region"]
     gRNA_dict["strand_type"] = TF_dict_of_dict[TF_dict]["Strand"]
+    gRNA_dict["upstreamHA"] = TF_dict_of_dict[TF_dict]["upstreamHA"]
+    gRNA_dict["downstreamHA"] = TF_dict_of_dict[TF_dict]["downstreamHA"]
 
     if gRNA_dict["start/stop"] == "start_codon":
 
@@ -77,10 +85,11 @@ for TF_dict in TF_dict_of_dict:
 
     for sgRNA_file in sgRNA_files:
 
-        gRNA_hits = filter_gRNA(sgRNA_file,single_TF_dict,ref_genome)
+        gRNA_hits = filter_gRNA(sgRNA_file,single_TF_dict,refSeqPerChromosome)
 
         gRNA_dict["sgRNA_list_positions"] = gRNA_hits["sgRNA_list_positions"]
         gRNA_dict["sgRNA_list_values"] = gRNA_hits["sgRNA_list_values"]
+        gRNA_dict["sgRNA_strand"] = gRNA_hits["sgRNA_strand"]
         
         # In case the filter_gRNA() function finds more than one suitable sgRNAs then the funtion find_best_gRNA()
         # is executed to compare which of the sgRNAs is the most suitable one

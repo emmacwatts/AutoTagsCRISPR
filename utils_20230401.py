@@ -14,7 +14,7 @@ def revComp(inputSeq):
 
   return revComp
 
-def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
+def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
     '''
     Creating a dataframe from sequence information and genes of interest. Depends on function revComp(). 
 
@@ -45,7 +45,6 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     '''
     import pandas as pd
-    from Bio import SeqIO
     
     #This is the input file containing the TFs we want to query
     #Imported as a pandas dataframe
@@ -56,11 +55,6 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
     #Note that I'll use these for the info categories of the final pandas df (rather than the transgenic genome annotations)
     refAnnotationsHeaders = ["Chromosome", "Source", "Gene_Region", "Start", "Stop", "Score", "Strand", "Frame", "Attribute"]
     refGenomeAnnotation = pd.read_csv(annotation, sep = "\t", header = None, index_col = False, names = refAnnotationsHeaders)
-
-    #This is the FASTA file of the reference genome sequence
-    refSeqPerChromosome = {}
-    for seq in SeqIO.parse(open(ref_genome), 'fasta'):
-        refSeqPerChromosome[seq.id] = seq.seq
     
     #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
     index = 0
@@ -127,7 +121,7 @@ def make_dataframe_from_TFs_list(TF_list, ref_genome, annotation):
 
     return TFsdf, TFsdict_of_dict
 
-def filter_gRNA(gRNA_file, TF_dict, ref_genome):
+def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome):
     '''
     params:
         gRNA_file: gff file
@@ -152,15 +146,10 @@ def filter_gRNA(gRNA_file, TF_dict, ref_genome):
             'strand_type':'+',
             "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
             "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
+            "sgRNA_strand" = '-'
         }
     '''
     import pandas as pd
-    from Bio import SeqIO
-
-    # load the fruit fly reference genome
-    refSeqPerChromosome = {}
-    for seq in SeqIO.parse(open(ref_genome), 'fasta'):
-        refSeqPerChromosome[seq.id] = seq.seq 
 
     # create a dataframe from the gRNA files
     gRNAFileAnnotation = pd.read_csv(gRNA_file, sep = "\t", index_col = False)
@@ -202,10 +191,18 @@ def filter_gRNA(gRNA_file, TF_dict, ref_genome):
 
             gRNA_string = str(refSeqPerChromosome[GenomeCoordinates['#chr'].iloc[gRNA]][int(GenomeCoordinates['fmin'].iloc[gRNA])-1:int(GenomeCoordinates['fmax'].iloc[gRNA])])
 
+            # if the gRNA lies on the minus strand than provide reverse complement sequence
+
+            if GenomeCoordinates['strand'].iloc[gRNA] == '-':
+
+                gRNA_string = revComp(gRNA_string)
+
             sgRNA_list_values.append(gRNA_string)
 
     TF_dict["sgRNA_list_positions"] = sgRNA_list_positions
     TF_dict["sgRNA_list_values"] = sgRNA_list_values
+    TF_dict["sgRNA_strand"] = GenomeCoordinates['strand'].iloc[gRNA]
+
 
     return(TF_dict)
 
@@ -680,74 +677,361 @@ def translate_nucleotide_position_into_codon_position(sequence, nucleotide_posit
 
     return(count)
 
+def check_PAM_inside_CDS(df):
+
+    """
+    Check whether PAM (3bp from the 3´end of the sgRNA) lies within the CDS.
+    This needs to be known to figure out whether it would be best to mutate the PAM or the recognition site.
+    We would rather mutate something in the CDS because we know that synonymous mutations should not destroy
+    protein function wheareas we are not sure if mutations might destroy relevant motifs in the UTRs. 
+    
+    params: dictionary with the following format (only mock not real gene)
+
+        df={
+            'gene_ID': 'FBgn0004652', 
+            'transcript_ID': 'FBtr0083648', 
+            'chromosome': '3R', 
+            'start/stop': 'start_codon', 
+            'strand_type': '-', 
+            'genome_start_codon_pos': 18506517, 
+            'genome_stop_codon_pos': 'N/A', 
+            'sgRNA_list_positions': [18506502, 18506525], 
+            'sgRNA_list_values': 'GAGTTCTTTTGCAGCATTTATGG', 
+            'must_PAM_be_mutated_in_HDR_plasmid?': 'no'
+            }
+
+    returns: bolean, 'yes' or 'no'
+
+    """
+    if df['sgRNA_strand'] == '+':
+
+        if df['strand_type'] == '+' and df["start/stop"]=="start_codon":
+
+            start_codon_pos = df["genome_start_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][1]-2
+
+            if start_codon_pos <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '+' and df["start/stop"]=="stop_codon":
+
+            stop_codon_pos = df["genome_stop_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][1]
+
+            if stop_codon_pos >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+        elif df['strand_type'] == '-' and df['start/stop'] == 'start_codon':
+
+            start_codon_pos = df['genome_start_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][1]
+
+            if start_codon >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '-' and df['start/stop'] == 'stop_codon':
+
+            stop_codon_pos = df['genome_stop_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][1]-2
+
+            if stop_codon <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon > pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+    elif df['sgRNA_strand'] == '-':
+
+        if df['strand_type'] == '+' and df["start/stop"]=="start_codon":
+
+            start_codon_pos = df["genome_start_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][0]
+
+            if start_codon_pos <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '+' and df["start/stop"]=="stop_codon":
+
+            stop_codon_pos = df["genome_stop_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][0]+2
+
+            if stop_codon_pos >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+        elif df['strand_type'] == '-' and df['start/stop'] == 'start_codon':
+
+            start_codon_pos = df['genome_start_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][0]+2
+
+            if start_codon >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '-' and df['start/stop'] == 'stop_codon':
+
+            stop_codon_pos = df['genome_stop_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][0]
+
+            if stop_codon <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+
+    return pos_inside_CDS
+
+def check_sgRNA_recognition_site_inside_CDS(df):
+
+    """
+    Check whether sgRNA recognition site (9bp from the 3´end of the sgRNA) lies within the CDS.
+    This needs to be known to figure out whether it would be best to mutate the PAM or the recognition site.
+    We would rather mutate something in the CDS because we know that synonymous mutations should not destroy
+    protein function wheareas we are not sure if mutations might destroy relevant motifs in the UTRs. 
+    
+    params: dictionary with the following format (only mock not real gene)
+
+        df={
+            "start/stop":"start",#is it N or C termini -> do we need to look at start or stop codon for teh cut 
+            'genome_start_codon_pos':400, 
+            'genome_stop_codon_pos':700, # or only 1 of those 
+            'strand_type':'+',
+            "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+            "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
+        }
+
+    returns: bolean, 'yes' or 'no'
+
+    """
+    if df['sgRNA_strand'] == '+':
+
+        if df['strand_type'] == '+' and df["start/stop"]=="start_codon":
+
+            start_codon_pos = df["genome_start_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][1]-2-6
+
+            if start_codon_pos <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '+' and df["start/stop"]=="stop_codon":
+
+            stop_codon_pos = df["genome_stop_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][1]-2
+
+            if stop_codon_pos >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+        elif df['strand_type'] == '-' and df['start/stop'] == 'start_codon':
+
+            start_codon_pos = df['genome_start_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][1]-2
+
+            if start_codon >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '-' and df['start/stop'] == 'stop_codon':
+
+            stop_codon_pos = df['genome_stop_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][1]-2-6
+
+            if stop_codon <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon > pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+    elif df['sgRNA_strand'] == '-':
+
+        if df['strand_type'] == '+' and df["start/stop"]=="start_codon":
+
+            start_codon_pos = df["genome_start_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][0]+2
+
+            if start_codon_pos <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '+' and df["start/stop"]=="stop_codon":
+
+            stop_codon_pos = df["genome_stop_codon_pos"]
+
+            pos_of_interest = df["sgRNA_list_positions"][0]+2+6
+
+            if stop_codon_pos >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+        
+        elif df['strand_type'] == '-' and df['start/stop'] == 'start_codon':
+
+            start_codon_pos = df['genome_start_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][0]+2+6
+
+            if start_codon >= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif start_codon_pos < pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+        elif df['strand_type'] == '-' and df['start/stop'] == 'stop_codon':
+
+            stop_codon_pos = df['genome_stop_codon_pos']
+
+            pos_of_interest = df['sgRNA_list_position'][0]+2
+
+            if stop_codon <= pos_of_interest:
+
+                pos_inside_CDS = "yes"
+
+            elif stop_codon > pos_of_interest:
+
+                pos_inside_CDS = "no"
+
+    return pos_inside_CDS
+
 def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
 
     from os import sys
 
-    if df["start/stop"] == "start_codon":
-
-        pos_of_interest = df["genome_start_codon_pos"]
-
-    elif df["start/stop"] == "stop_codon":
-        
-        pos_of_interest = df["genome_stop_codon_pos"] 
-
     codon_table_excel = "inputfiles/codon_table.xlsx"
 
-    # check whether PAM in HAL-R
-
-    if 0 >= df["sgRNA_list_positions"][1] - 2 - pos_of_interest:
+    if df['sgRNA_strand'] == df['strand_type']:
 
         PAM_pos = df["sgRNA_list_positions"][1]
+
+        # check whether PAM in HAL-R
+
+        if PAM_pos < pos_of_interest:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAL_R = PAM_pos - pos_of_interest
         
-        # sanity check whether las nucleotide of PAM is a G
+            # sanity check whether last nucleotide of PAM is a G
 
-        if HAL_R[PAM_pos] != "G" :
+            if HAL_R[PAM_pos_in_HAL_R] != "G" :
 
-            # if there was no PAM found there is a bug and the program should stop running 
-            
-            print(HAL_R, df)
-
-            print("Error! No GG or CC found in HAL-R even though PAM should be located in HAL-R")
-
-            sys.exit()
-
-        # try mutating the PAM in the primer/HDR fragment
-        mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
-
-        # if you were able to mutate the PAM in the primer/ fragment sequence, add mutated primer 
-        # and information about which primer was mutated to the dataframe
-        if mutated_HAL_R:
-
-            df["HAL-R"] = mutated_HAL_R
-            df["HAR-F"] = HAR_F
-            df["mutated?"] = "HAL_R"
-
-        # if you were not successful in mutating the PAM in the primer/ fragment sequence,
-        # try mutating the sgRNA recognition sequence in the primer/ fragement sequence
-        else: 
-
-            # calculate the distance between the start/ stop condon and the end of the PAM 
-            # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
-            distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
-
-            mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance)
-            
-            if mutated_HAL_R:
+                # if there was no PAM found there is a bug and the program should stop running 
                 
-                #if mutation was successful,  update the sgRNA dictionary with mutated primers 
-                # and add information about mutation status
-                df["HAR-F"] = HAR_F
+                print(HAL_R, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel)
+
+        elif PAM_pos-2 > pos_of_interest + 2:
+
+
+
+            # if you were able to mutate the PAM in the primer/ fragment sequence, add mutated primer 
+            # and information about which primer was mutated to the dataframe
+            if mutated_HAL_R:
+
                 df["HAL-R"] = mutated_HAL_R
+                df["HAR-F"] = HAR_F
                 df["mutated?"] = "HAL_R"
 
-            else:
+            # if you were not successful in mutating the PAM in the primer/ fragment sequence,
+            # try mutating the sgRNA recognition sequence in the primer/ fragement sequence
+            else: 
 
-                # if mutation was not successful, add information about mutation status 
-                # and keep old unmutated primer
-                df["HAR-F"] = HAR_F
-                df["HAL-R"] = HAL_R
-                df["mutated?"] = "no"
+                # calculate the distance between the start/ stop condon and the end of the PAM 
+                # to determine where the sgRNA recognition site is located in the primer/ fragement sequence
+                distance = pos_of_interest - df["sgRNA_list_positions"][1] - 2
+
+                mutated_HAL_R = mutate_sgRNA_recognition_site_in_HDR_plasmid('HAL_R', HAL_R, distance)
+                
+                if mutated_HAL_R:
+                    
+                    #if mutation was successful,  update the sgRNA dictionary with mutated primers 
+                    # and add information about mutation status
+                    df["HAR-F"] = HAR_F
+                    df["HAL-R"] = mutated_HAL_R
+                    df["mutated?"] = "HAL_R"
+
+                else:
+
+                    # if mutation was not successful, add information about mutation status 
+                    # and keep old unmutated primer
+                    df["HAR-F"] = HAR_F
+                    df["HAL-R"] = HAL_R
+                    df["mutated?"] = "no"
 
     # check whether PAM in HAR-F
     
@@ -862,6 +1146,18 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
     else:
         return newSequence #Otherwise, return the mutated sequence
 
+def mutate_HDR_plasmid(HAL_R, HAR_F, df):
+
+    check whether PAM in CDS
+
+                if yes mutatte PAM
+
+                if no check whether sgRNA recognition site is in CDS
+
+                if yes mutate sgRNA recognition site
+
+                if no mutate PAM outside CDS to a specific codon
+
 def retrieve_HDR_arm(df):
 
     """
@@ -973,23 +1269,19 @@ def find_best_gRNA(df):
                 winner_sgRNA["sgRNA_list_values"]=winner_sgRNA["sgRNA_list_values"][0]
                 winner_sgRNA["sgRNA_list_positions"]=winner_sgRNA["sgRNA_list_positions"][0]
 
-                # check whether the original dataframe contains HDR arm fragment
+                HAL, HAR = winner_sgRNA["downstreamHA"], winner_sgRNA["upstreamHA"]
 
-                #TODO@Marina: get rid of this there will always be an HDR fragment, the question is can it be synthesized
+                mutated_winner = mutate_HDR_plasmid(HAL, HAR, winner_sgRNA)
 
-                #HAL, HAR = retrieve_HDR_arm(winner_sgRNA)
+                if mutated_winner:
 
-                #mutated_winner = mutate_PAM_in_HDR_plasmid(HAL, HAR, winner_sgRNA)
+                # if the primers output delivers an HDR arm, then mutate the HDR arm
 
-                #if mutated_winner:
+                   winner_sgRNA = mutated_winner
 
-                    # if the primers output delivers an HDR arm, then mutate the HDR arm
+                else:
 
-                   #winner_sgRNA = mutated_winner
-
-                #else:
-
-                    # if the primers output does not deliver an HDR arm, then mutate the primer for the HDR arm if possible
+                # if the primers output does not deliver an HDR arm, then mutate the primer for the HDR arm if possible
 
                     #HAL_R, HAR_F = retrieve_primer(primer_file, TF)
 
