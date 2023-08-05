@@ -24,6 +24,8 @@ def Check_and_mutate_HDR_plasmid(primers_output_file, optimal_sgRNA_output_file)
         "sgRNA_list_values": row['sgRNA_seq']
         }
 
+        print(df)
+
         #df_updated = fct.mutate_PAM_in_HDR_plasmid(row['HAL-R'],row['HAR-F'],df)
         df_updated = {
         "start/stop": row['Gene_Region'],
