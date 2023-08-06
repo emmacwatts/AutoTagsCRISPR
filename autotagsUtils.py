@@ -14,6 +14,7 @@ def revComp(inputSeq):
 
     return revComp
 
+#Primer functions
 def make_primers_dataframe_from_TFs_list(TF_list, ref_genome = "inputfiles/dmel-all-chromosome-r6.48.fasta", annotation = "inputfiles/dmel-all-r6.48.gtf"):
     '''
     Extracts information and sequence region for genes of interest (TFs) for design of primers per gene.
@@ -544,3 +545,464 @@ def primersRunner(TFs = 'inputfiles/TFs.xlsx', refgenome = 'inputfiles/dmel-all-
 
     TFsdf = finalPrimersdf(TFsdf, outputFile, returnParameters= True)
 
+#Homology Arm Fragments
+
+def make_homology_arm_fragments(tfsDF):
+    """
+    Takes in the dataframe of information about start/stop codon regions, 
+    and appends with columns for the 225 bp upstream and downstream of
+    this site (the homlogy arm fragments).
+
+    input: tfsDF - as defined in previous function and on GitHub README, with Reference_Seq 1700bp either side of the start/stop.
+    output: tfsDF appended with upstreamHA and downstreamHA
+
+    """
+
+    tfsDF["upstreamHA"] = tfsDF.Reference_Seq.str[1375:1600]
+    tfsDF["downstreamHA"] = tfsDF.Reference_Seq.str[1604:1829]
+
+    return tfsDF
+
+#sgRNA functions
+
+def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta", annotation = "inputfiles/dmel-all-r6.48.gtf"):
+    '''
+    Creating a dataframe from sequence information and genes of interest. Depends on function revComp(). 
+
+    params:
+            TF_list: xlsx file listing the genes of interest
+            ref_genome: fasta file containing the gene sequence information for the reference genome
+            annotation: gtf file containing the gene annotation information for the reference genome
+
+
+    returns: dataframe with dictionaries for every isotype for each gene of interest
+        {..., 
+        108843:{    'Gene_ID': 'FBgn0004652',
+                    'Transcript_ID': 'FBtr0083651', 
+                    'Chromosome': '3R', 
+                    'Gene_Region': 'stop_codon', 
+                    'Start': 18426145, 
+                    'Stop': 18426147, 
+                    'Strand': '-', 
+                    'Reference_Seq': 'TTGATCGTAGGACAC', 
+                }
+        ...,
+        }
+
+    '''
+    import pandas as pd
+    
+    #This is the input file containing the TFs we want to query
+    #Imported as a pandas dataframe
+    queryTFsdf = pd.read_excel(TF_list)
+    #Ths contains 765 TFs total
+
+    #This is the .gtf file with annotations for each gene on the reference genome
+    #Note that I'll use these for the info categories of the final pandas df (rather than the transgenic genome annotations)
+    refAnnotationsHeaders = ["Chromosome", "Source", "Gene_Region", "Start", "Stop", "Score", "Strand", "Frame", "Attribute"]
+    refGenomeAnnotation = pd.read_csv(annotation, sep = "\t", header = None, index_col = False, names = refAnnotationsHeaders)
+    
+    #This is to reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
+    index = 0
+
+    #Add new categories to the dataframe
+    refGenomeAnnotation = refGenomeAnnotation.assign(Gene_ID = "", Gene_Symbol = "", Transcript_ID = "")
+
+    #For each attribute value, extract the gene ID and symbol and add this to the new categories
+    for attribute in refGenomeAnnotation['Attribute']:
+        fullatt = (refGenomeAnnotation.loc[index]["Attribute"]).replace(";", "")
+        fullatt = fullatt.replace('"', "")
+        fullattsplit = fullatt.split(" ")
+        refGenomeAnnotation.at[index,"Gene_ID"] = fullattsplit[1]
+        refGenomeAnnotation.at[index,"Gene_Symbol"] = fullattsplit[3]
+        if len(fullattsplit) > 4:
+            refGenomeAnnotation.at[index,"Transcript_ID"] = fullattsplit[5]
+            refGenomeAnnotation.at[index,"Transcript_Symbol"] = fullattsplit[7]
+        index+=1
+
+    #Delete Attributes category
+    del refGenomeAnnotation["Attribute"]
+
+    #Select only rows that TFs are in, and keep only the start and stop codon gene regions
+
+    refGenomeAnnotation = refGenomeAnnotation.loc[refGenomeAnnotation["Gene_Region"].isin(["start_codon", "stop_codon"])]
+
+    TFsdf = refGenomeAnnotation[["Gene_ID", "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop", "Strand"]].loc[refGenomeAnnotation["Gene_ID"].isin(queryTFsdf["Flybase_ID"])]
+
+    #Add reference genome sequence per gene region
+    #This will correspond to 1.6kb upstream and downstream of ATG/stop codon 
+    TFsdf = TFsdf.assign(Reference_Seq = "")
+
+    for index, rowcontents in TFsdf.iterrows():
+            #Define 3.2kb gene region
+            regionStart = rowcontents["Start"] - 1601
+            regionStop = rowcontents["Stop"] + 1600
+
+            #Add reference sequence
+            refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
+            TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
+
+    #Create fragments for the HDR-arm
+    TFsdf = make_homology_arm_fragments(TFsdf)
+
+    #re-index
+    TFsdf = TFsdf.reset_index()
+    del TFsdf["index"]
+           
+    #Create a dictionary of dictionaries for the df
+    TFsdict_of_dict = {}
+    for index, rowcontents in TFsdf.iterrows():
+        TFsdict_of_dict[index] = rowcontents.to_dict()
+
+    return TFsdf, TFsdict_of_dict
+
+def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta"):
+    '''
+    params:
+        gRNA_file: gff file
+        TF_dict: dataframe with the following format:
+
+            {    'Gene_ID': 'FBgn0004652',
+                'Transcript_ID': 'FBtr0083651', 
+                'Chromosome': '3R', 
+                'Gene_Region': 'stop_codon', 
+                'Start': 18426145, 
+                'Stop': 18426147, 
+                'Strand': '-', 
+                'Reference_Seq': 'TTGATCGTAGGACAC', 
+                'Transgenic_Seq': 'GACCCTAGGACCGG'
+            }
+        returns: dictionary with the following format
+
+            df={
+            "start/stop":"start",#is it N or C termini -> do we need to look at start or stop codon for teh cut 
+            'genome_start_codon_pos':400, 
+            'genome_stop_codon_pos':700, # or only 1 of those 
+            'strand_type':'+',
+            "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+            "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
+            "sgRNA_strand" = '-'
+        }
+    '''
+    import pandas as pd
+
+    # create a dataframe from the gRNA files
+    gRNAFileAnnotation = pd.read_csv(gRNA_file, sep = "\t", index_col = False)
+
+    # add a new category to the dataframe that provides information about whether the sequence deviates from the transgenic strain 
+    gRNAFileAnnotation = gRNAFileAnnotation.assign(target_site_variation= "")
+
+    # reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
+    index = 0 #TODO@Marina improve this code
+
+    # for each attribute value, extract the gene ID and symbol and add this to the new categories
+    for attribute in gRNAFileAnnotation['attributes']:
+
+        fullatt = (attribute).split(";")
+        gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
+        index+=1
+    
+    # shorten file to essential information
+    GenomeCoordinates = gRNAFileAnnotation.loc[:,["target_site_variation", "fmin", "fmax", "#chr", "strand"]]
+
+    # initialize a list that stores the positions of the gRNAs
+    sgRNA_list_positions = []
+    sgRNA_list_values = []
+
+    # check whether the sgRNAs match the transgeneic genome, whether the sgRNAs match to the same chromosome as the transcription factor
+    # select sgRNA that are located maximally 20 bp upstream of the start/stop codon of the transcription factors
+    # select sgRNA that are located maximally 20 bp downstream of the start/stop codon of the transcription factors
+
+    for gRNA in range(len(GenomeCoordinates)):
+        
+        if GenomeCoordinates['target_site_variation'].iloc[gRNA] == "target_site_variation=none observed" and \
+        GenomeCoordinates['#chr'].iloc[gRNA] == TF_dict["Chromosome"] and \
+        int(GenomeCoordinates['fmin'].iloc[gRNA])-1 >= TF_dict["Start"] - 20 and \
+        int(GenomeCoordinates['fmax'].iloc[gRNA]) <= TF_dict["Stop"] + 20:
+                
+            sgRNA_list_positions.append([int(GenomeCoordinates['fmin'].iloc[gRNA])-1, int(GenomeCoordinates['fmax'].iloc[gRNA])])
+        
+            # to retrieve the nucleotide sequence of the sgRNA, load the fruit fly reference genome and extract the sequence at the genomic coordinates provided in the sgRNA file
+
+            gRNA_string = str(refSeqPerChromosome[GenomeCoordinates['#chr'].iloc[gRNA]][int(GenomeCoordinates['fmin'].iloc[gRNA])-1:int(GenomeCoordinates['fmax'].iloc[gRNA])])
+
+            # if the gRNA lies on the minus strand than provide reverse complement sequence
+
+            if GenomeCoordinates['strand'].iloc[gRNA] == '-':
+
+                gRNA_string = revComp(gRNA_string)
+
+            sgRNA_list_values.append(gRNA_string)
+
+    TF_dict["sgRNA_list_positions"] = sgRNA_list_positions
+    TF_dict["sgRNA_list_values"] = sgRNA_list_values
+    TF_dict["sgRNA_strand"] = GenomeCoordinates['strand'].iloc[gRNA]
+
+
+    return(TF_dict)
+
+def positionScore(df):
+    """
+    Boolean evaluations of whether sgRNAs for a site meets required best-pick conditions and positional information about these sgRNAs.
+
+    params:
+        df: a dataframe for one start/stop site of the format: 
+            df= {"start/stop":"start", #is it N or C termini -> do we need to look at start or stop codon for teh cut 
+            'genome_start_codon_pos':403, 
+            'genome_stop_codon_pos':406, # or only 1 of those 
+            'strand_type':'+',
+            "sgRNA_list_positions":[[401,425],[403, 427]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+            "sgRNA_list_values":["AAGCGACTA", "CCTGTAA"],
+            "sgRNA_strand" : ['-', '+']}
+    """
+
+    import pandas as pd
+
+    #Set up a new dataframe where boolean values will be stored per sgRNA in the input df
+    sgRNACatalogue = pd.DataFrame(columns = ["sgRNA_sequence", "sgRNA_stop", "sgRNA_strand"], index = range(1, len(df["sgRNA_list_values"])))
+
+    #Iterating through sgRNAs in df, add to the sgRNACatalogue
+    for ind, sgRNA in enumerate(df["sgRNA_list_values"]):
+        newCatalogueRow = [sgRNA, df["sgRNA_list_positions"][ind][1], df["sgRNA_strand"][ind]]
+        sgRNACatalogue.loc[ind] = newCatalogueRow
+
+    #Re-order the index as we've been appending to the top
+    sgRNACatalogue = sgRNACatalogue.sort_index()
+
+    #Calculate fmax of sgRNA - stop of genome start/stop position - this will be used for position scoring throughout
+    sgRNACatalogue["positionScore"] = sgRNACatalogue["sgRNA_stop"] - df["genome_stop_codon_pos"] #This is fmax - stop
+
+    #Dataframe containing parameter ranges to interpret the positon score, based on gene strand, sgRNA strand, and start/stop
+    positionScoreParameters = pd.read_excel("inputfiles/fmaxStopScore.xlsx")
+
+    #Add the boolean columns to our output dataframe
+    booleanColumns = ["P6inCDS", "Mutate2", "Mutate1", "OutsideCDS", "CutSiteInCDS", "PAMinCDS", "15bpOverhangL", "15bpOverhangR"]
+    PAMColumns = ["PAMRelativeEnd", "PAMinStartStop"]
+    sgRNACatalogue = sgRNACatalogue.reindex(columns = sgRNACatalogue.columns.tolist() + booleanColumns + PAMColumns)
+
+    for ind, sgRNA in sgRNACatalogue.iterrows():
+
+        #Extract the appropriate parameter row per sgRNA
+        conditions = positionScoreParameters.loc[(positionScoreParameters["start/stop"] == df["start/stop"]) & (positionScoreParameters["strand_type"] == df["strand_type"]) & (positionScoreParameters["sgRNA_strand"] == sgRNACatalogue.at[ind, 'sgRNA_strand'])]
+        conditions = conditions.reset_index(drop = True)
+
+        #Per column, input true/false as to whether the position score meets that condition
+        for col in booleanColumns:
+            colValue = conditions.at[0,col] #extract parameter range values from dataframe
+            #Process the value into a range (in format list [min, max])
+            #If the values should be 'more than' or 'less than', 250 is used as a max or -250 as min because fragments are 225bp, so distances cannot be more than this
+            if ">" in colValue: 
+                minMax = [int(colValue[1:]), 250]
+            elif "<" in colValue:
+                minMax = [-250,int(colValue[1:])]
+            elif ":" in colValue:
+                min, max = colValue.split(":")
+                minMax = [int(min), int(max)]
+            else:
+                print("Incorrect format of range value. Verify inputs.")
+            
+            #Into the output dataframe, print true/false as to whether the positionScore has met the condition for that column
+            sgRNACatalogue.at[ind, col] = bool(sgRNACatalogue.at[ind, "positionScore"] in range(minMax[0], minMax[1]))
+
+        #Calculate PAM position as a relative distance to the left end of start/stop if PAM is on the left, or right if on right (this can be calculated from the position score with the same equation for all cases)
+        sgRNACatalogue.at[ind, "PAMRelativeEnd"] = int(abs(sgRNACatalogue.at[ind, "positionScore"]))
+
+        #Calculate if PAM is in start/stop - where positionScore is 2 or less
+        sgRNACatalogue.at[ind, "PAMinStartStop"] = bool(sgRNACatalogue.at[ind,"PAMRelativeEnd"] < 3)
+
+    return sgRNACatalogue
+
+def checkCDSCutandOrder(sgRNACatalogue):
+    """
+    Given an sgRNACatalogue or subset, will calculate firstly rows where the sgRNA cuts inside CDS. If multiple, selects that which cuts closest to start/stop.
+    If none, selects closest cut sgRNA that is outside CDS.
+    
+    """
+    #C. Check cut site in CDS
+    conditionC = sgRNACatalogue[sgRNACatalogue["CutSiteInCDS"] == True]
+    conditionCclosestCut = conditionC.sort_values('PAMRelativeEnd') #This value is the absolute value of positionScore, so indicates those that cut closest to start/stop
+
+    if len(conditionCclosestCut) >1: #cuts in CDS, closest cut (C1, C2)
+        conditionCclosestCut = conditionCclosestCut.reset_index(drop = True) #reset index
+        winnersgRNA = conditionCclosestCut.at[0, "sgRNA_sequence"]
+        winnerFound = True
+    else: #not sgRNAs cut in CDS, select closest that still met condition B (C3)
+        nonCDSclosestCut = sgRNACatalogue.sort_values('PAMRelativeEnd')
+        winnersgRNA = nonCDSclosestCut.at[0, "sgRNA_sequence"]
+        winnerFound = True
+
+    return winnersgRNA, winnerFound
+
+def find_best_gRNA(df):
+    """
+    params: df={
+            "start/stop":"start",#is it N or C termini -> do we need to look at start or stop codon for teh cut 
+            'genome_start_codon_pos':400, 
+            'genome_stop_codon_pos':700, # or only 1 of those 
+            'strand_type':'+',
+            "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+            "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
+        }
+    
+    """
+    #Score the sgRNAs for this site
+    sgRNACatalogue = positionScore(df)
+
+    #Set up the winning guide RNA
+    winnerFound = False
+    mutationNeeded = False
+    winnersgRNA = "" #Could update this to be more information about the guide e.g. strand, position
+
+    #If there is no guide RNAs at this site, flag this. The resulting sgRNA will be an empty string.
+    if len(sgRNACatalogue) == 0:
+        print(f"No guide RNAs were found for the start/stop site beginning at position {df['genome_start_codon_pos']}")
+        winnerFound = True #To avoid looping through other conditions if there are no sgRNAs
+
+    #A. Ideal condition - PAM in start/stop
+    if winnerFound == False:
+        conditionA = sgRNACatalogue[sgRNACatalogue["PAMinStartStop"] == True] #This is the subset df for which PAM is in the start/stop
+        if len(conditionA) > 0: #if there is one or more sgRNAs for this condition, select the first as the winner
+            conditionA = conditionA.reset_index(drop = True) #reset index
+            winnersgRNA = conditionA.at[0, "sgRNA_sequence"]
+            winnerFound = True
+
+    #B. sgRNA overhang is less than 15bp
+    if winnerFound == False:
+        conditionB = sgRNACatalogue[sgRNACatalogue["15bpOverhangL"] == False & sgRNACatalogue["15bpOverhangR"] == False]
+        if len(conditionB) == 1:
+            winnersgRNA = conditionB
+            winnerFound = True
+        elif len(conditionB) > 1: #more than one, select in CDS preferencially, and closest cut
+            winnersgRNA, winnerFound = checkCDSCutandOrder(conditionB)    
+
+    #D. sgRNA overhang is more than 15bp, need to mutate
+    if winnerFound == False:
+        if len(sgRNACatalogue) == 1:
+            winnersgRNA = sgRNACatalogue.at[0, "sgRNA_sequence"]
+        else: #more than 1 sgRNA
+            winnersgRNA, winnerFound = checkCDSCutandOrder(sgRNACatalogue)            
+
+        mutationNeeded = True
+
+
+    return winnersgRNA, mutationNeeded, sgRNACatalogue[sgRNACatalogue["sgRNA_sequence"] == winnersgRNA] #could adapt return to be just the true/false for mutation and the catalogue
+
+def codonFragmenter(sequenceString, type = "homologyArm", direction = 'HAL', geneStrand = '+'):
+    """
+    Fragments codons in order moving away from the start or stop site. If gene on - strand, will take the reverse complement codon.
+
+    params:
+        sequence: sequence to fragment into codons as string.
+        type: one of "homologyArm" or "primer". If primer, will truncate at far end into a fragment divisible by 3 before fragmenting into codons.
+        direction: 'HAL' or 'HAR'. If on left homology arm, codon order is from right to left. If on right, codon order is from left to right.
+        geneStrand: if +, codons are the original + strand sequence. If -, each individual codon has been reverse complemented.
+    """
+
+    #If sequence is for primer HAL-R, will take the reverse complement so that all fragments/primers used in code below are in the same orientation.
+    if type =="primer" & direction == 'HAL':
+        sequenceDirected = revComp(sequenceString)
+    else:
+        sequenceDirected = sequenceString
+
+    #Define the sequence string to use/mutate. If primer, truncate until divisible by 3.
+    if type == "primer":
+        remainder = len(sequenceDirected) % 3
+        if remainder == 1:
+            sequence = sequenceDirected[:-1]
+        elif remainder == 2:
+            sequence = sequenceDirected[:-2]
+        else:
+            sequence = sequenceDirected #if already divisible by 3
+    elif type == "homologyArm":
+        sequence = sequenceDirected #no modification needed, always 225bp so divisible by 3
+    else:
+        print("Sequence type invalid.")
+
+    orderedCodons = []
+
+    #Define codons in threes along to sequence.
+    for codonBase1 in range(0, len(sequence), 3):
+        orderedCodons.append(sequence[codonBase1:codonBase1+3]) #Append this to orderedCodons
+    if direction == 'HAL': #If on the left, reverse the ordered codons list to be moving away from the start/stop
+        orderedCodons.reverse()
+    if geneStrand == '-': #If on the minus strand, take revComp per codon
+        for ind, codon in enumerate(orderedCodons):
+            orderedCodons[ind] = revComp(codon)
+    
+    return orderedCodons
+
+##incomplete
+def mutator(sequenceToMutate, winner_sgRNACatalogue, sequenceType = "homologyArm"):
+    """
+    In the case where a fragment or primer needs to be mutated, will mutate in CDS (preferably PAM, if not in the sgRNA). If not possible, will mutate PAM outside of CDS to NGT.
+
+    params:
+        sequenceToMutate: the homology arm or primer fragment that will be mutated.
+        winner_sgRNACatalogue: sgRNACatalogue in format as above, with only the row for the winner sgRNA selected.
+        sequenceType: one of 'homologyArm' or 'primer'.
+    """
+
+    #Check mutable conditions and posiions
+    if positionBoolean.at[]
+
+    #1. Mutate PAM in CDS
+    if positionBoolean.at[1,"PAMinCDS"] is True:
+        
+    #after mutating, revComp back
+
+##Final runner
+##incomplete
+def runnersgRNAandPrimer(TF_list, type = "homologyArms"):
+
+    """
+    TF_list: .xlsx file of TFs. Either the full TFs list in the first instance, or a shorter list for which to calculate primers.
+    Type: One of "HomologyArm" or "primers" - homology arms will be returned in the normal instance.
+
+    """
+    
+    #make TFsdf
+    TFsdf, TFsdict_of_dic = make_dataframe_from_TFs_list(TF_list)
+
+    #sgRNAs
+    sgRNAfiles = [""] #sgRNA files in stringency order (low to high)
+    stringency = 0
+    sgRNAselected = False
+
+    #Loop through the different files and stop if an sgRNA is found
+    while sgRNAselected == False:
+        #From this, filter guideRNAs nearby
+        df = filter_gRNA(sgRNAfiles[stringency], TFsdict_of_dic)
+
+        #Extract necessary boolean and position values
+        sgRNACatalogue = positionScore(df)
+
+        #find best guideRNA
+        winnersgRNA, mutationNeeded, winnerCatalogue = find_best_gRNA(sgRNACatalogue)
+
+        #Check if a winner was found, go to next stringency level
+        if winnersgRNA != "":
+            sgRNAselected == True
+        else:
+            stringency +=1
+            if stringency > 3:
+                print("no sgRNAs could be found for any stringency file.")
+                sgRNAselected = True #To get out of the while loop
+
+    #Find homology arms or primers
+
+    #Find homology arms
+    if type == "homologyArms":
+        tfsDf = make_homology_arm_fragments(tfsDF)
+
+    #Find primers
+    elif type == "primers":
+        TFsdf = primersRunner(TFs = 'inputFiles/truncatedTFsinput.xlsx') #replace this with the TFs list of only those where you need primers
+
+    else:
+        print("invalid type. Should be one of 'homologyArms' or 'primers')
+              
+    #Mutate as needed
+    if mutationNeeded == True:
+        mutator(sequenceToMutate, winnerCatalogue, sequenceType = "homologyArm")
+
+    #return sgRNA selected, HAR fragments or primers, and I assume metrics

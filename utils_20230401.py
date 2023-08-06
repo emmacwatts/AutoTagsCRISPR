@@ -14,7 +14,7 @@ def revComp(inputSeq):
 
   return revComp
 
-def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
+def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta", annotation = "inputfiles/dmel-all-r6.48.gtf"):
     '''
     Creating a dataframe from sequence information and genes of interest. Depends on function revComp(). 
 
@@ -22,10 +22,6 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
             TF_list: xlsx file listing the genes of interest
             ref_genome: fasta file containing the gene sequence information for the reference genome
             annotation: gtf file containing the gene annotation information for the reference genome
-            transgenic_genome_chr2: fasta file containing the gene sequence information for the transgenic strain
-                that will be used for injection if targeted TF is on chromosome 3
-            transgenic_genome_chr3: fasta file containing gene sequence information for the transgenic strain
-                that will be used for injection if targeted TF is on chromosome X, 2, or 4
 
 
     returns: dataframe with dictionaries for every isotype for each gene of interest
@@ -38,7 +34,6 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
                     'Stop': 18426147, 
                     'Strand': '-', 
                     'Reference_Seq': 'TTGATCGTAGGACAC', 
-                    'Transgenic_Seq': 'GACCCTAGGACCGG'
                 }
         ...,
         }
@@ -88,17 +83,6 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
     TFsdf = TFsdf.assign(Reference_Seq = "")
 
     for index, rowcontents in TFsdf.iterrows():
-        if rowcontents["Strand"] == "+":
-
-            #Define 3.2kb gene region
-            regionStart = rowcontents["Start"] - 1601
-            regionStop = rowcontents["Stop"] + 1600
-
-            #Add reference sequence
-            TFsdf.at[index,"Reference_Seq"] = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop])
-            
-        if rowcontents["Strand"] == "-":
-
             #Define 3.2kb gene region
             regionStart = rowcontents["Start"] - 1601
             regionStop = rowcontents["Stop"] + 1600
@@ -121,7 +105,7 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
 
     return TFsdf, TFsdict_of_dict
 
-def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome):
+def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta"):
     '''
     params:
         gRNA_file: gff file
@@ -1150,7 +1134,7 @@ def mutate_HDR_plasmid(HAL_R, HAR_F, df):
 
     check whether PAM in CDS
 
-                if yes mutatte PAM
+                if yes mutate PAM
 
                 if no check whether sgRNA recognition site is in CDS
 
