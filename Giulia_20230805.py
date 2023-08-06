@@ -138,12 +138,12 @@ def PAM_sgRNA_presence_checker(gene_region, sgRNA_strand_type, sgRNA_end,
         recognition_area_start = PAM_start + 6
         recognition_area_stop = PAM_start + 1
 
-    if PAM_start > primer_region_start and PAM_stop < primer_region_stop:
+    if PAM_start >= primer_region_start and PAM_stop <= primer_region_stop:
         PAM_in_primers = True
     else:
         PAM_in_primers = False
 
-    if recognition_area_start > primer_region_start and recognition_area_stop < primer_region_stop:
+    if recognition_area_start >= primer_region_start and recognition_area_stop <= primer_region_stop:
         sgRNA_recognition_in_primers = True
     else:
         sgRNA_recognition_in_primers = False
