@@ -1329,7 +1329,7 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(director, df):
 
     for ind in mutationIndex:
         codontoMutate = fragmentedCodons[mutationIndex[0]] #extract a codon to mutate
-        synonCodons = find_synonymous_codons(query_codon)
+        synonCodons = find_synonymous_codons(codontoMutate)
         if len(synonCodons) != 0: #at least one synonymous codon is found
             df["mutated"] == "yes" #indicate a mutation has been made
             fragmentedCodons[mutationIndex[0]] = synonCodons[0] #replace the mutated codon in the list
