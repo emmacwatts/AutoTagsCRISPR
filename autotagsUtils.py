@@ -887,6 +887,37 @@ def find_best_gRNA(df):
 
     return winnersgRNA, mutationNeeded, sgRNACatalogue[sgRNACatalogue["sgRNA_sequence"] == winnersgRNA] #could adapt return to be just the true/false for mutation and the catalogue
 
+##incomplete
+def stringencyFilesIterator(TFsdict_of_dic):
+    """"
+    Loop throgh stringency files to select sgRNA for one start/stop position. 
+    """
+    sgRNAfiles = [""] #sgRNA files in stringency order (low to high)
+    stringency = 0
+    sgRNAselected = False
+
+    #Loop through the different files and stop if an sgRNA is found
+    while sgRNAselected == False:
+        #From this, filter guideRNAs nearby
+        df = filter_gRNA(sgRNAfiles[stringency], TFsdict_of_dic)
+
+        #Extract necessary boolean and position values
+        sgRNACatalogue = positionScore(df)
+
+        #find best guideRNA
+        winnersgRNA, mutationNeeded, winnerCatalogue = find_best_gRNA(sgRNACatalogue)
+
+        #Check if a winner was found, go to next stringency level
+        if winnersgRNA != "":
+            sgRNAselected == True
+        else:
+            stringency +=1
+            if stringency > 3:
+                print("no sgRNAs could be found for any stringency file.")
+                sgRNAselected = True #To get out of the while loop
+    
+    return "something"
+
 def codonFragmenter(sequenceString, type = "homologyArm", direction = 'HAL', geneStrand = '+'):
     """
     Fragments codons in order moving away from the start or stop site. If gene on - strand, will take the reverse complement codon.
@@ -932,7 +963,7 @@ def codonFragmenter(sequenceString, type = "homologyArm", direction = 'HAL', gen
     return orderedCodons
 
 ##incomplete
-def mutator(sequenceToMutate, winner_sgRNACatalogue, sequenceType = "homologyArm"):
+def mutator(UpstreamFrag, downstreamFrag, df, sequenceType = "homologyArm"):
     """
     In the case where a fragment or primer needs to be mutated, will mutate in CDS (preferably PAM, if not in the sgRNA). If not possible, will mutate PAM outside of CDS to NGT.
 
@@ -941,6 +972,10 @@ def mutator(sequenceToMutate, winner_sgRNACatalogue, sequenceType = "homologyArm
         winner_sgRNACatalogue: sgRNACatalogue in format as above, with only the row for the winner sgRNA selected.
         sequenceType: one of 'homologyArm' or 'primer'.
     """
+
+    positionScore(df)
+
+    #sequenceToMutate, winner_sgRNACatalogue, sequenceType = "homologyArm"
 
     #Check mutable conditions and posiions
     if positionBoolean.at[]
@@ -951,12 +986,14 @@ def mutator(sequenceToMutate, winner_sgRNACatalogue, sequenceType = "homologyArm
     #after mutating, revComp back
 
 ##Final runner
+
 ##incomplete
-def runnersgRNAandPrimer(TF_list, type = "homologyArms"):
+def runnersgRNAandPrimer(TF_list, type = "homologyArms", sgRNAdf = "none"):
 
     """
     TF_list: .xlsx file of TFs. Either the full TFs list in the first instance, or a shorter list for which to calculate primers.
-    Type: One of "HomologyArm" or "primers" - homology arms will be returned in the normal instance.
+    type: One of "HomologyArm" or "primers" - homology arms will be returned in the normal instance.
+    sgRNAdf = if none, will run the sgRNA search function per TF in TF_list. If provided, will use the provided sgRNAs.
 
     """
     
@@ -964,30 +1001,9 @@ def runnersgRNAandPrimer(TF_list, type = "homologyArms"):
     TFsdf, TFsdict_of_dic = make_dataframe_from_TFs_list(TF_list)
 
     #sgRNAs
-    sgRNAfiles = [""] #sgRNA files in stringency order (low to high)
-    stringency = 0
-    sgRNAselected = False
-
-    #Loop through the different files and stop if an sgRNA is found
-    while sgRNAselected == False:
-        #From this, filter guideRNAs nearby
-        df = filter_gRNA(sgRNAfiles[stringency], TFsdict_of_dic)
-
-        #Extract necessary boolean and position values
-        sgRNACatalogue = positionScore(df)
-
-        #find best guideRNA
-        winnersgRNA, mutationNeeded, winnerCatalogue = find_best_gRNA(sgRNACatalogue)
-
-        #Check if a winner was found, go to next stringency level
-        if winnersgRNA != "":
-            sgRNAselected == True
-        else:
-            stringency +=1
-            if stringency > 3:
-                print("no sgRNAs could be found for any stringency file.")
-                sgRNAselected = True #To get out of the while loop
-
+    if sgRNAdf = none
+        for dict in TFsdict_ofdic = sgRNA:
+            #files iterator
     #Find homology arms or primers
 
     #Find homology arms
