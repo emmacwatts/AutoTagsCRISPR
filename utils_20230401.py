@@ -130,7 +130,7 @@ def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-c
             'strand_type':'+',
             "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
             "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
-            "sgRNA_strand" = '-'
+            "sgRNA_strand" = ['-']
         }
     '''
     import pandas as pd
@@ -1130,17 +1130,148 @@ def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate,
     else:
         return newSequence #Otherwise, return the mutated sequence
 
-def mutate_HDR_plasmid(HAL_R, HAR_F, df):
+def codonFragmenter(sequence, direction = 'HAL', geneStrand = '+'):
+    """
+    Fragments codons in order moving away from the start or stop site. If gene on - strand, will take the reverse complement codon.
 
-    check whether PAM in CDS
+    params:
+        sequence: sequence to fragment into codons as string.
+        type: one of "homologyArm" or "primer". If primer, will truncate at far end into a fragment divisible by 3 before fragmenting into codons.
+        direction: 'HAL' or 'HAR'. If on left homology arm, codon order is from right to left. If on right, codon order is from left to right.
+        geneStrand: if +, codons are the original + strand sequence. If -, each individual codon has been reverse complemented.
+    """
 
-                if yes mutate PAM
+    orderedCodons = []
 
-                if no check whether sgRNA recognition site is in CDS
+    #Define codons in threes along to sequence.
+    for codonBase1 in range(0, len(sequence), 3):
+        orderedCodons.append(sequence[codonBase1:codonBase1+3]) #Append this to orderedCodons
+    if direction == 'HAL': #If on the left, reverse the ordered codons list to be moving away from the start/stop
+        orderedCodons.reverse()
+    if geneStrand == '-': #If on the minus strand, take revComp per codon
+        for ind, codon in enumerate(orderedCodons):
+            orderedCodons[ind] = revComp(codon)
+    
+    return orderedCodons
 
-                if yes mutate sgRNA recognition site
+def positionScore(df):
+    """
+    Boolean evaluations of whether sgRNAs for a site meets required best-pick conditions and positional information about these sgRNAs.
 
-                if no mutate PAM outside CDS to a specific codon
+    params:
+        df: a dataframe for one start/stop site of the format: 
+            df= {"start/stop":"start", #is it N or C termini -> do we need to look at start or stop codon for teh cut 
+            'genome_start_codon_pos':403, 
+            'genome_stop_codon_pos':406, # only one of these - the other is n/a
+            'strand_type':'+',
+            "sgRNA_list_positions":[[401,425],[403, 427]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+            "sgRNA_list_values":["AAGCGACTA", "CCTGTAA"],
+            "sgRNA_strand" : ['-', '+']}
+    """
+
+    import pandas as pd
+
+    #Set up a new dataframe where boolean values will be stored per sgRNA in the input df
+    sgRNACatalogue = pd.DataFrame(columns = ["sgRNA_sequence", "sgRNA_stop", "sgRNA_strand"], index = range(1, len(df["sgRNA_list_values"])))
+
+    #Iterating through sgRNAs in df, add to the sgRNACatalogue
+    for ind, sgRNA in enumerate(df["sgRNA_list_values"]):
+        newCatalogueRow = [sgRNA, df["sgRNA_list_positions"][ind][1], df["sgRNA_strand"][ind]]
+        sgRNACatalogue.loc[ind] = newCatalogueRow
+
+    #Re-order the index as we've been appending to the top
+    sgRNACatalogue = sgRNACatalogue.sort_index()
+
+    #Calculate fmax of sgRNA - stop of genome start/stop position - this will be used for position scoring throughout
+    #only have fmin in case of start codon - recalc fmax from this for homogeneity:
+    if df["start/stop"] == "start":
+        df["genome_stop_codon_pos"] == df["genome_stop_codon_pos"] + 2
+    
+    sgRNACatalogue["positionScore"] = sgRNACatalogue["sgRNA_stop"] - df["genome_stop_codon_pos"] #This is fmax - stop
+
+    #Dataframe containing parameter ranges to interpret the positon score, based on gene strand, sgRNA strand, and start/stop
+    positionScoreParameters = pd.read_excel("inputfiles/fmaxStopScore.xlsx")
+
+    #Add the boolean columns to our output dataframe
+    booleanColumns = ["P6inCDS", "Mutate2", "Mutate1", "OutsideCDS", "CutSiteInCDS", "PAMinCDS", "15bpOverhangL", "15bpOverhangR", "PAMoutsideCDS"]
+    PAMColumns = ["PAMRelativeEnd", "PAMinStartStop"]
+    sgRNACatalogue = sgRNACatalogue.reindex(columns = sgRNACatalogue.columns.tolist() + booleanColumns + PAMColumns)
+
+    for ind, sgRNA in sgRNACatalogue.iterrows():
+
+        #Extract the appropriate parameter row per sgRNA
+        conditions = positionScoreParameters.loc[(positionScoreParameters["start/stop"] == df["start/stop"]) & (positionScoreParameters["strand_type"] == df["strand_type"]) & (positionScoreParameters["sgRNA_strand"] == sgRNACatalogue.at[ind, 'sgRNA_strand'])]
+        conditions = conditions.reset_index(drop = True)
+
+        #Per column, input true/false as to whether the position score meets that condition
+        for col in booleanColumns:
+            colValue = conditions.at[0,col] #extract parameter range values from dataframe
+            #Process the value into a range (in format list [min, max])
+            #If the values should be 'more than' or 'less than', 250 is used as a max or -250 as min because fragments are 225bp, so distances cannot be more than this
+            if ">" in colValue: 
+                minMax = [int(colValue[1:]), 250]
+            elif "<" in colValue:
+                minMax = [-250,int(colValue[1:])]
+            elif ":" in colValue:
+                min, max = colValue.split(":")
+                minMax = [int(min), int(max)]
+            else:
+                print("Incorrect format of range value. Verify inputs.")
+            
+            #Into the output dataframe, print true/false as to whether the positionScore has met the condition for that column
+            sgRNACatalogue.at[ind, col] = bool(sgRNACatalogue.at[ind, "positionScore"] in range(minMax[0], minMax[1]))
+
+        #Calculate PAM position as a relative distance to the left end of start/stop if PAM is on the left, or right if on right (this can be calculated from the position score with the same equation for all cases)
+        sgRNACatalogue.at[ind, "PAMRelativeEnd"] = int(abs(sgRNACatalogue.at[ind, "positionScore"]))
+
+        #Calculate if PAM is in start/stop - where positionScore is 2 or less
+        sgRNACatalogue.at[ind, "PAMinStartStop"] = bool(sgRNACatalogue.at[ind,"PAMRelativeEnd"] < 3)
+
+    return sgRNACatalogue
+
+def mutate_HDR_plasmid(HAL_R, HAR_F, df, sequenceType = "homologyArm"):
+    """
+    In the case where a fragment or primer needs to be mutated, will mutate in CDS (preferably PAM, if not in the sgRNA). If not possible, will mutate PAM outside of CDS to NGT.
+
+    params:
+        sequenceToMutate: the homology arm or primer fragment that will be mutated.
+        winner_sgRNACatalogue: sgRNACatalogue in format as above, with only the row for the winner sgRNA selected.
+        sequenceType: one of 'homologyArm' or 'primer'.
+    """
+    sgRNAScoreCatalogue = positionScore(df)
+
+    #Check mutable conditions and posiions
+
+    #1. Mutate PAM in CDS
+    if sgRNAScoreCatalogue.at[1,"PAMinCDS"] is True:
+        df = mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df)
+
+    #2. Mutate sgRNA in CDS
+    if df["mutated?"] == "no": #Only proceed with this step if previous mutation was not possible
+        df = mutate_sgRNA_recognition_site_in_HDR_plasmid(HAL_R, HAR_F, df, sgRNAScoreCatalogue) #will mutate 1 or 2 codons
+    
+    #3. Mutate PAM outside of CDS
+    if df["mutated?"] == "no":
+        df = mutatePamOutsideCDS(HAL_R, HAR_F, df, sgRNAScoreCatalogue)
+    
+    return df
+    
+def mutatePamOutsideCDS(HAL_R, HAR_F, df, sgRNAScoreCatalogue):
+    """
+    mutates PAM outside CDS from NGG to NGT
+    """
+
+    #Determine direction to go outside CDS, plus PAM position
+    df[]
+
+
+
+
+    #after mutating, revComp back
+
+    return df
+
+##Final runner
 
 def retrieve_HDR_arm(df):
 
