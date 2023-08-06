@@ -1228,28 +1228,22 @@ def mutate_HDR_plasmid(HAL_R, HAR_F, df, sequenceType = "homologyArm"):
     #2. Mutate sgRNA in CDS
     #check that we can mutate either one or two codons in the CDS
     if df["mutated?"] == "no" and sgRNAScoreCatalogue.at[1,"Mutate2"] is True or sgRNAScoreCatalogue.at[1,"Mutate1"] is True: #Only proceed with this step if previous mutation was not possible
-        df = mutate_sgRNA_recognition_site_in_HDR_plasmid(sgRNAScoreCatalogue["CDSside"], df, sgRNAScoreCatalogue) #will mutate 1 or 2 codons
+        df = mutate_sgRNA_recognition_site_in_HDR_plasmid(sgRNAScoreCatalogue["CDSside"], df) #will mutate 1 or 2 codons
     
     #3. Mutate PAM outside of CDS
     if df["mutated?"] == "no":
-        df = mutatePamOutsideCDS(HAL_R, HAR_F, df, sgRNAScoreCatalogue)
+        df = mutatePAMOutsideCDS(HAL_R, HAR_F, df, sgRNAScoreCatalogue)
     
     return df
     
-def mutatePamOutsideCDS(HAL_R, HAR_F, df, sgRNAScoreCatalogue):
+def mutatePAMOutsideCDS(sequenceToAdapt, lastGposition):
     """
     mutates PAM outside CDS from NGG to NGT
     """
+    sequenceToAdapt[lastGposition] = ""
+    finalSequence = sequenceToAdapt[:lastGposition] + "T" + sequenceToAdapt[lastGposition+1:]
 
-    #Determine direction to go outside CDS, plus PAM position
-    df[]
-
-
-
-
-    #after mutating, revComp back
-
-    return df
+    return finalSequence
 
 ##Final runner
 
