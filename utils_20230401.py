@@ -191,12 +191,6 @@ def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome):
 
             gRNA_string = str(refSeqPerChromosome[GenomeCoordinates['#chr'].iloc[gRNA]][int(GenomeCoordinates['fmin'].iloc[gRNA])-1:int(GenomeCoordinates['fmax'].iloc[gRNA])])
 
-            # if the gRNA lies on the minus strand than provide reverse complement sequence
-
-            if GenomeCoordinates['strand'].iloc[gRNA] == '-':
-
-                gRNA_string = revComp(gRNA_string)
-
             sgRNA_list_values.append(gRNA_string)
 
     TF_dict["sgRNA_list_positions"] = sgRNA_list_positions
@@ -553,10 +547,10 @@ def find_synonymous_codons(query_codon, codon_table_excel):
 
     return synonymous_codons
 
-def mutate_PAM_in_codon(query_codon, synonymous_codons):
+def mutate_PAM_in_codon(query_codon, synonymous_codons, sgRNA_strand):
 
     '''
-    Mutates one of the G`s from the PAM in the query codon to another nucleotide based on the codon list provided. 
+    Mutates one of the G/C`s from the PAM in the query codon to another nucleotide based on the codon list provided. 
     Returns an empty list if mutation was not possible.
 
     params: 
@@ -566,8 +560,9 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
     returns:
         selected_codon: string, codon that is the same as the query codon apart from one G, which also encodes for the same amino acid as the query codon.
     '''
+    if synoynmous_codons:
 
-    if synonymous_codons:
+    if sgRNA_strand == '+' # in the case that the sgRNA is lying on the + strand, the part of the fragment corresponding to the PAM will be NGG
 
         list_query_codon = list(query_codon)
     
@@ -577,7 +572,7 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
 
                 list_synonymous_codon = list(synonymous_codon)
 
-                if list_synonymous_codon[2] != 'G':
+                if list_synonymous_codon[2] != 'G' and listsynonymous_codon != 'A': # this is because the PAM should not be mutated into NGA
 
                     selected_codon = synonymous_codon
 
@@ -613,10 +608,11 @@ def mutate_PAM_in_codon(query_codon, synonymous_codons):
         
     return selected_codon
 
-def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel = 'inputfiles/codon_table.xlsx'):
+def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel = 'inputfiles/codon_table.xlsx', sgRNA_strand):
 
     '''
-    Mutates a G from the PAM in a sequence in a way, that the codon containing the G still encodes for the same amino acid.
+    Mutates a G/C from the PAM in a sequence in a way, that the codon containing the G still encodes for the same amino acid.
+    The genetic code does not allow for mutating away middle G´s, it does only allow for mutating away G´s located in the wobble position.
 
     params:
         sequence: string, containing the sequence that is supposed to be mutated.
@@ -636,7 +632,7 @@ def make_synonymous_mutation(sequence, position_of_mutation, codon_table_excel =
 
     synonymous_codons = find_synonymous_codons(codon_to_mutate, codon_table_excel)
 
-    selected_codon = mutate_PAM_in_codon(codon_to_mutate, synonymous_codons)
+    selected_codon = mutate_PAM_in_codon(codon_to_mutate, synonymous_codons, sgRNA_strand)
 
     if selected_codon: 
 
@@ -962,11 +958,21 @@ def check_sgRNA_recognition_site_inside_CDS(df):
 
     return pos_inside_CDS
 
-def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
+def mutate_PAM_in_HDR_plasmid_old(HAL_R, HAR_F, df):
+
+    # TODO: delete this as soon as Emma has copied the old parts that are still relevant into her new function
 
     from os import sys
 
     codon_table_excel = "inputfiles/codon_table.xlsx"
+
+    if df["start/stop"] == "start_codon":
+
+        pos_of_interest = df["genome_start_codon_pos"]
+
+    if df["start/stop"] == "stop_codon":
+
+        pos_of_interest = df["genome_stop_codon_pos"]
 
     if df['sgRNA_strand'] == df['strand_type']:
 
@@ -1086,6 +1092,245 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
                     df["HAR-F"] = HAR_F
                     df["HAL-R"] = HAL_R
                     df["mutated?"] = "no"
+                
+    return df
+
+def mutate_PAM_in_HDR_plasmid_new(HAL_R, HAR_F, df):
+
+    from os import sys
+
+    codon_table_excel = "inputfiles/codon_table.xlsx"
+
+    if df["start/stop"] == "start_codon":
+
+        pos_of_interest = df["genome_start_codon_pos"]
+
+    if df["start/stop"] == "stop_codon":
+
+        pos_of_interest = df["genome_stop_codon_pos"]
+
+    if df['strand_type'] == "+" and df['sgRNA_strand'] == '+':
+
+        PAM_pos = df["sgRNA_list_positions"][1]
+
+        # check whether PAM in HAL-R
+
+        if PAM_pos < pos_of_interest:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAL_R = PAM_pos - pos_of_interest
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAL_R[PAM_pos_in_HAL_R] != "G" :
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug somwhere and the program should stop running 
+                
+                print(HAL_R, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+
+        # check whether PAM is in HAR-F
+
+        elif PAM_pos - 2 > pos_of_interest + 2:
+
+            # calculate distance between end of HAR-F and end of PAM
+
+            PAM_pos_in_HAR_F = PAM_pos - (pos_of_interest + 2)
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAR_F[PAM_pos_in_HAR_F - 1] != "G" : # the minus 1 was added here because the first letter of a string is indexed as zero in python
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug somwhere and the program should stop running 
+                
+                print(HAR_F, df)
+
+                print("Error! The PAM position in HAR-F is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+    
+    elif df['strand_type'] == '+' and df['sgRNA_strand'] == '-':
+        
+        PAM_pos = df["sgRNA_list_positions"][0]
+
+        # check whether PAM in HAL-R
+
+        if PAM_pos + 2 < pos_of_interest:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAL_R = PAM_pos - pos_of_interest
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAL_R[PAM_pos_in_HAL_R] != "G" :
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug and the program should stop running 
+                
+                print(HAL_R, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+
+        # check whether PAM is in HAR-F
+
+        elif PAM_pos > pos_of_interest + 2:
+
+            # calculate distance between end of HAR-F and end of PAM
+
+            PAM_pos_in_HAR_F = PAM_pos - (pos_of_interest + 2)
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAR_F[PAM_pos_in_HAR_F - 1] != "G" : # the minus 1 was added here because the first letter of a string is indexed as zero in python
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug somwhere and the program should stop running 
+                
+                print(HAR_F, df)
+
+                print("Error! The PAM position in HAR-F is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+
+    elif df['strand_type'] == '-' and df['sgRNA_strand'] == '+':
+
+        PAM_pos = df["sgRNA_list_positions"][1]
+
+        # check whether PAM in HAL-R
+
+        if PAM_pos - 2 > pos_of_interest + 2:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAL_R = PAM_pos - (pos_of_interest + 2)
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAL_R[PAM_pos_in_HAL_R - 1] != "G" : # the minus 1 was added here because the first letter of a string is indexed as zero in python
+
+                # if there was no PAM found there is a bug and the program should stop running 
+                
+                print(HAL_R, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+
+        # check whether PAM is in HAR-F
+
+        elif PAM_pos < pos_of_interest:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAR_F = PAM_pos - pos_of_interest
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAR_F[PAM_pos_in_HAR_F] != "G" :
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug and the program should stop running 
+                
+                print(HAR_F, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel, df['sgRNA_strand'])    
+
+    elif df['strand_type'] == '-' and df['sgRNA_strand'] == '-':
+
+        PAM_pos = df["sgRNA_list_positions"][0]
+
+        # check whether PAM in HAL-R
+
+        if PAM_pos > pos_of_interest + 2:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAL_R = PAM_pos - pos_of_interest + 2
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAL_R[PAM_pos_in_HAL_R - 1] != "G" : # the minus 1 was added here because the first letter of a string is indexed as zero in python
+
+                # if there was no PAM found there is a bug and the program should stop running 
+                
+                print(HAL_R, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAL_R = make_synonymous_mutation(HAL_R, PAM_pos, codon_table_excel, df['sgRNA_strand'])
+
+        # check whether PAM is in HAR-F
+
+        elif PAM_pos + 2 < pos_of_interest:
+
+            # calculate distance between end of HAL-R and end of PAM
+
+            PAM_pos_in_HAR_F = PAM_pos - pos_of_interest
+        
+            # sanity check whether last nucleotide of PAM is a G
+
+            if HAR_F[PAM_pos_in_HAR_F] != "G" :
+
+                # if there was no G found in the last nucleotide of the PAM, there is a bug and the program should stop running 
+                
+                print(HAR_F, df)
+
+                print("Error! The PAM position in HAL-R is not correct")
+
+                sys.exit()
+
+            # try mutating the PAM in the HDR fragment
+            mutated_HAR_F = make_synonymous_mutation(HAR_F, PAM_pos, codon_table_excel, df['sgRNA_strand'])    
+
+    # if you were able to mutate the PAM in the fragment sequence, add mutated primer 
+    # and information about which primer was mutated to the dataframe
+    if mutated_HAL_R:
+
+        df["HAL-R"] = mutated_HAL_R
+        df["HAR-F"] = HAR_F
+        df["mutated?"] = "HAL_R"
+
+    elif mutated_HAR_F:
+
+        df["HAR-F"] = mutated_HAR_F
+        df["HAL-R"] = HAL_R
+        df["mutated?"] = "HAR_F"
+
+    # if you were not successful in mutating the PAM in the primer/ fragment sequence,
+    # return the primer/ fragments in their unmutated forms and flag them as unmutated
+    
+    else:
+        
+        df["HAR-F"] = HAR_F
+        df["HAL-R"] = HAL_R
+        df["mutated?"] = "no"
                 
     return df
 
