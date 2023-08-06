@@ -504,7 +504,7 @@ def make_homology_arm_fragments(tfsDF):
 
     return tfsDF
 
-def find_synonymous_codons(query_codon, codon_table_excel):
+def find_synonymous_codons(query_codon, codon_table_excel = "inputfiles/codon_table.xlsx"):
 
     '''
     Uses the amino acids table to select codons that encode for the same amino acid as the query codon.
@@ -1073,62 +1073,24 @@ def mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df):
                 
     return df
 
-def mutate_sgRNA_recognition_site_in_HDR_plasmid(sequenceType, sequenceToMutate, positionCount):
+def mutate_sgRNA_recognition_site_in_HDR_plasmid(director, df):
     """
-    Mutates HDR arm fragments in the sgRNA recognition site in the 2-3 codons closest to PAM in the case where PAM itself cannot be mutated. 1-2 mutations are made in separate amino acids.
-
-    params:
-        sequenceType: 'HAL-R' or 'HAR-F' (corresponding to left or right homology arm)
-        sequenceToMutate: the primer/fragment sequence. If reverse primer, this should be the + strand (revComp)
-        positionCount: Distance of start/stop from PAM (excluding NGG).
-
-    returns:
-        newSequence: The mutated HDR arm. If no mutations were not possible, an empty string will be returned.
-
+    Note that for now, this does not indicate the number of mutations (for simplicity), but this will be either one or two if df["mutated"] = "yes"
     """
     #Define all codons in the homology arm fragment
-    allCodons = []
-    for codonStart in range(0, len(sequenceToMutate), 3):
-        allCodons.append(sequenceToMutate[codonStart:codonStart+3])
+    fragmentedCodons = codonFragmenter(df["sgRNA_list_values"][0], direction = director, geneStrand = df["strand_type"])
+    mutationIndex = [] #codon number from the list of the 1 or 2 codons to mutate
+    #for 1 mutation, this will be one index, for 2, there will be 2
 
-    if sequenceType == 'HAL-R':
-        allCodons.reverse() #For HAL-R, order codons moving away from te STOP site
-    
-    #Take the 1-3 codons closest to PAM in order
-    if positionCount <= 3: #Can only attempt to mutate one codon if positionCount is less than three
-        orderedMutableCodons = {0: allCodons[0]}
-    elif positionCount <= 6: #Can only attempt to mutate two codon if positionCount is less than six
-        orderedMutableCodons = {0: allCodons[0], 1: allCodons[1]}
-    else:
-        PAMcodon = int((positionCount-1)/3) #This is the codon number that PAM is in
-        if positionCount%3 !=0: #If PAM is not in frame, take the codon that it is in and the two after that
-            orderedMutableCodons = {PAMcodon:allCodons[PAMcodon], PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} 
-        else: #If in frame, just take the 2 codons after PAM
-            orderedMutableCodons = {PAMcodon-1:allCodons[PAMcodon-1], PAMcodon-2:allCodons[PAMcodon-2]} 
-        
-    #This is the count of mutations completed in the sequence.
-    mutatedCount = 0
-    newSequence = sequenceToMutate #Make copy to avoid mutating original sequence
+    for ind in mutationIndex:
+        codontoMutate = fragmentedCodons[mutationIndex[0]] #extract a codon to mutate
+        synonCodons = find_synonymous_codons(query_codon)
+        if len(synonCodons) != 0: #at least one synonymous codon is found
+            df["mutated"] == "yes" #indicate a mutation has been made
+            fragmentedCodons[mutationIndex[0]] = synonCodons[0] #replace the mutated codon in the list
+            reverseFragmenter(fragmentedCodons, direction = director, geneStrand = df["strand_type"])
 
-    #loop through the codons and mutate if possible to a maximum of two mutations.
-    for key, codon in orderedMutableCodons.items():
-        #find synonymous codons - will provide list of synonymous codons
-        codonOptions = find_synonymous_codons(codon)
-
-        #if the list is not empty, select the first synonymous codon and replace this within the mutable region. Add 1 to mutatedCount.
-        if codonOptions != []:
-            newcodon = codonOptions[0]
-            newSequence = newSequence[:(len(allCodons)-key-1)*3] + newcodon + newSequence[(len(allCodons)-key)*3:] #replace the appropriate codon in sequenceToMutate
-            mutatedCount +=1
-        #Once you reach 2, stop mutating
-        if mutatedCount == 2:
-            print(mutatedCount)
-            break
-
-    if mutatedCount == 0: #If nothing was mutated, return an empty string
-        return ""
-    else:
-        return newSequence #Otherwise, return the mutated sequence
+    return df 
 
 def codonFragmenter(sequence, direction = 'HAL', geneStrand = '+'):
     """
@@ -1153,6 +1115,22 @@ def codonFragmenter(sequence, direction = 'HAL', geneStrand = '+'):
             orderedCodons[ind] = revComp(codon)
     
     return orderedCodons
+
+def reverseFragmenter(mutatedOrderedCodons, direction = 'HAL', geneStrand = '+'):
+    """
+    """
+
+    fullString = ""
+
+    if geneStrand == "-":
+        for ind, codon in enumerate(mutatedOrderedCodons): #Take + strand sequences of the codons
+            mutatedOrderedCodons[ind] = revComp(codon)
+    if direction == 'HAL':
+        mutatedOrderedCodons.reverse()
+    for codon in mutatedOrderedCodons:
+        fullString.append(codon)
+    
+    return fullString
 
 def positionScore(df):
     """
@@ -1238,17 +1216,19 @@ def mutate_HDR_plasmid(HAL_R, HAR_F, df, sequenceType = "homologyArm"):
         winner_sgRNACatalogue: sgRNACatalogue in format as above, with only the row for the winner sgRNA selected.
         sequenceType: one of 'homologyArm' or 'primer'.
     """
-    sgRNAScoreCatalogue = positionScore(df)
 
     #Check mutable conditions and posiions
+    sgRNAScoreCatalogue = positionScore(df)
+    df["mutated?"] == "no" #To be changed when mutation has been successful
 
     #1. Mutate PAM in CDS
     if sgRNAScoreCatalogue.at[1,"PAMinCDS"] is True:
         df = mutate_PAM_in_HDR_plasmid(HAL_R, HAR_F, df)
 
     #2. Mutate sgRNA in CDS
-    if df["mutated?"] == "no": #Only proceed with this step if previous mutation was not possible
-        df = mutate_sgRNA_recognition_site_in_HDR_plasmid(HAL_R, HAR_F, df, sgRNAScoreCatalogue) #will mutate 1 or 2 codons
+    #check that we can mutate either one or two codons in the CDS
+    if df["mutated?"] == "no" and sgRNAScoreCatalogue.at[1,"Mutate2"] is True or sgRNAScoreCatalogue.at[1,"Mutate1"] is True: #Only proceed with this step if previous mutation was not possible
+        df = mutate_sgRNA_recognition_site_in_HDR_plasmid(sgRNAScoreCatalogue["CDSside"], df, sgRNAScoreCatalogue) #will mutate 1 or 2 codons
     
     #3. Mutate PAM outside of CDS
     if df["mutated?"] == "no":
