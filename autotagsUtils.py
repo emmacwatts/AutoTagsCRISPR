@@ -819,14 +819,14 @@ def checkCDSCutandOrder(sgRNACatalogue):
     
     """
     #C. Check cut site in CDS
-    conditionC = sgRNACatalogue[sgRNACatalogue["CutSiteInCDS"] == True]
-    conditionCclosestCut = conditionC.sort_values('PAMRelativeEnd') #This value is the absolute value of positionScore, so indicates those that cut closest to start/stop
+    conditionC = sgRNACatalogue[sgRNACatalogue["Cutsite_in_CDS"] == True]
+    conditionCclosestCut = conditionC.sort_values('positionScore') #This value is the absolute value of positionScore, so indicates those that cut closest to start/stop
 
-    if len(conditionCclosestCut) >1: #cuts in CDS, closest cut (C1, C2)
+    if len(conditionCclosestCut) > 0: #cuts in CDS, closest cut (C1, C2)
         conditionCclosestCut = conditionCclosestCut.reset_index(drop = True) #reset index
         winnersgRNA = conditionCclosestCut.at[0, "sgRNA_sequence"]
         winnerFound = True
-    else: #not sgRNAs cut in CDS, select closest that still met condition B (C3)
+    else: #no sgRNAs cut in CDS, select closest that still met condition B (C3)
         nonCDSclosestCut = sgRNACatalogue.sort_values('PAMRelativeEnd')
         winnersgRNA = nonCDSclosestCut.at[0, "sgRNA_sequence"]
         winnerFound = True
@@ -860,7 +860,7 @@ def find_best_gRNA(df):
 
     #A. Ideal condition - PAM in start/stop
     if winnerFound == False:
-        conditionA = sgRNACatalogue[sgRNACatalogue["PAMinStartStop"] == True] #This is the subset df for which PAM is in the start/stop
+        conditionA = sgRNACatalogue[sgRNACatalogue["PAM_in_start/stop"] == True] #This is the subset df for which PAM is in the start/stop
         if len(conditionA) > 0: #if there is one or more sgRNAs for this condition, select the first as the winner
             conditionA = conditionA.reset_index(drop = True) #reset index
             winnersgRNA = conditionA.at[0, "sgRNA_sequence"]
@@ -868,7 +868,7 @@ def find_best_gRNA(df):
 
     #B. sgRNA overhang is less than 15bp
     if winnerFound == False:
-        conditionB = sgRNACatalogue[sgRNACatalogue["15bpOverhangL"] == False & sgRNACatalogue["15bpOverhangR"] == False]
+        conditionB = sgRNACatalogue[sgRNACatalogue["<15_bp3’_overhang"] == True]
         if len(conditionB) == 1:
             winnersgRNA = conditionB
             winnerFound = True
@@ -883,7 +883,6 @@ def find_best_gRNA(df):
             winnersgRNA, winnerFound = checkCDSCutandOrder(sgRNACatalogue)            
 
         mutationNeeded = True
-
 
     return winnersgRNA, mutationNeeded, sgRNACatalogue[sgRNACatalogue["sgRNA_sequence"] == winnersgRNA] #could adapt return to be just the true/false for mutation and the catalogue
 
@@ -1004,6 +1003,7 @@ def runnersgRNAandPrimer(TF_list, type = "homologyArms", sgRNAdf = "none"):
     if sgRNAdf = none
         for dict in TFsdict_ofdic = sgRNA:
             #files iterator
+
     #Find homology arms or primers
 
     #Find homology arms
