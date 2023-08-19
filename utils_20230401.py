@@ -14,7 +14,7 @@ def revComp(inputSeq):
 
   return revComp
 
-def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta", annotation = "inputfiles/dmel-all-r6.48.gtf"):
+def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation = "inputfiles/dmel-all-r6.48.gtf"):
     '''
     Creating a dataframe from sequence information and genes of interest. Depends on function revComp(). 
 
@@ -105,7 +105,7 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome = "inputfiles/dmel
 
     return TFsdf, TFsdict_of_dict
 
-def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-chromosome-r6.48.fasta"):
+def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome):
     '''
     params:
         gRNA_file: gff file
@@ -119,18 +119,21 @@ def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-c
                 'Stop': 18426147, 
                 'Strand': '-', 
                 'Reference_Seq': 'TTGATCGTAGGACAC', 
-                'Transgenic_Seq': 'GACCCTAGGACCGG'
             }
         returns: dictionary with the following format
 
             df={
-            "start/stop":"start",#is it N or C termini -> do we need to look at start or stop codon for teh cut 
-            'genome_start_codon_pos':400, 
-            'genome_stop_codon_pos':700, # or only 1 of those 
-            'strand_type':'+',
-            "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
-            "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
-            "sgRNA_strand" = ['-']
+                'Gene_ID': 'FBgn0004652',
+                'Transcript_ID': 'FBtr0083651', 
+                'Chromosome': '3R', 
+                'Gene_Region': 'stop_codon', 
+                'Start': 18426145, 
+                'Stop': 18426147, 
+                'Strand': '-', 
+                'Reference_Seq': 'TTGATCGTAGGACAC',
+                "sgRNA_list_positions":[[401,425],[456,467],[478,489],[395,415]],#those wil be as genome positions -assumptions - the coordinates correspond to the 1st and last bp of the strand to which the gsRNA will be complementary to
+                "sgRNA_list_values":["AAGCGACTA","AAAAAAAATAAAAA","ATATATTTTTTTTTTAAAAA","AGCGCGAAATAATA"]
+                "sgRNA_strand" = ['-']
         }
     '''
     import pandas as pd
@@ -157,6 +160,7 @@ def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-c
     # initialize a list that stores the positions of the gRNAs
     sgRNA_list_positions = []
     sgRNA_list_values = []
+    sgRNA_list_strand = []
 
     # check whether the sgRNAs match the transgeneic genome, whether the sgRNAs match to the same chromosome as the transcription factor
     # select sgRNA that are located maximally 20 bp upstream of the start/stop codon of the transcription factors
@@ -176,10 +180,11 @@ def filter_gRNA(gRNA_file, TF_dict, refSeqPerChromosome = "inputfiles/dmel-all-c
             gRNA_string = str(refSeqPerChromosome[GenomeCoordinates['#chr'].iloc[gRNA]][int(GenomeCoordinates['fmin'].iloc[gRNA])-1:int(GenomeCoordinates['fmax'].iloc[gRNA])])
 
             sgRNA_list_values.append(gRNA_string)
+            sgRNA_list_strand.append(GenomeCoordinates['strand'].iloc[gRNA])
 
     TF_dict["sgRNA_list_positions"] = sgRNA_list_positions
     TF_dict["sgRNA_list_values"] = sgRNA_list_values
-    TF_dict["sgRNA_strand"] = GenomeCoordinates['strand'].iloc[gRNA]
+    TF_dict["sgRNA_strand"] = sgRNA_list_strand
 
 
     return(TF_dict)
