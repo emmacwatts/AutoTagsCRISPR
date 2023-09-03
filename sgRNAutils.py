@@ -741,7 +741,6 @@ def sgRNArunner():
 
     #Make the dataframe for all transcription factor start/stop site infp
     TFsdf = make_dataframe_from_TFs_list("inputfiles/TFs.xlsx", refSeqPerChromosome)
-    display(TFsdf)
     
     #set up the output DF - this is the winning sgRNA per site in TFsdf
     TFsdfWinnersandMutated = pd.DataFrame(columns=["fmin", "fmax", "#chr", "strand", "sgRNA_sequence", "Gene_ID",
@@ -765,24 +764,23 @@ def sgRNArunner():
         #If no sgRNAs were found at any stringency
         if len(sgRNAdf) == 0:
             print(f"No sgRNAs found at all stringencies for {ind}.")
-            print(sgRNAdf)
 
             #Just input the information about this site into the final DF. The columns about the guideRNA will be filled with 'NaN', indicating no guideRNA could be found.
             for col in list(row.index):
                 TFsdfWinnersandMutated.at[ind, col] = row[col]
-            display(TFsdfWinnersandMutated)
+
         else: #If we have at least one sgRNA
             #Select winner
             winnersgRNA, mutationNeeded = find_best_gRNA(sgRNAdf) #winnersgRNA is a string of the winning sequence, mutationNeeded is a bool variable
+            print(winnersgRNA)
             winnerdf = sgRNAdf[sgRNAdf["sgRNA_sequence"] == winnersgRNA] #This is the dataframe row for the winning sgRNA from the original sgRNA dataframe
+            winnerdf.reset_index(inplace= True, drop= True)
             winnerdf = winnerdf.loc[0] #This is the pandas series for the same information
-            display(winnerdf)
             if mutationNeeded == True: #run mutator if indicated
                 winnerdf = mutator(winnerdf) #this will mutate HAL or HAR as needed and return the original DF with mutated sequences, and the mutated column set to True
         
             #Add the winning sgRNA into the output df for this TF start/stop site
             TFsdfWinnersandMutated.loc[ind] = winnerdf
-            display(TFsdfWinnersandMutated)
     
         #Return dataframe as an excel file (This should be unindented one, but while testing I'd like to see the output file updated after each row of the TFsdf)
         TFsdfWinnersandMutated.to_excel("outputFiles/winningsgRNAs.xlsx")
