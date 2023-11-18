@@ -15,22 +15,6 @@ def revComp(inputSeq):
 
   return revComp
 
-def make_homology_arm_fragments(tfsDF):
-    """
-    Takes in the dataframe of information about start/stop codon regions, 
-    and appends with columns for the 225 bp upstream and downstream of
-    this site (the homlogy arm fragments).
-
-    input: tfsDF - as defined in previous function and on GitHub README, with Reference_Seq 1600bp either side of the start/stop.
-    output: tfsDF appended with upstreamHA and downstreamHA
-
-    """
-
-    tfsDF["upstreamHA"] = tfsDF.Reference_Seq.str[1375:1600]
-    tfsDF["downstreamHA"] = tfsDF.Reference_Seq.str[1604:1829]
-
-    return tfsDF
-
 def refSeq():
     """
     Creates a Bio SeqIO element from the Drosophila melanogaster reference genome.
@@ -47,7 +31,7 @@ def refSeq():
 
 def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation = "inputfiles/dmel-all-r6.48.gtf"):
     '''
-    Creating a dataframe from sequence information and genes of interest. Depends on functions revComp() and make_homology_arm_fragments(). 
+    Creating a dataframe from sequence information and genes of interest. Depends on functions revComp(). 
 
     params:
         TF_list: xlsx file listing the genes of interest
@@ -62,11 +46,9 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation = "inp
         'Start': 18426145, 
         'Stop': 18426147, 
         'Strand': '-', 
-        'Reference_Seq': 'TTGATCGTAGGACAC', 
-        'upstreamHA': 'ATGCCTG', 
-        'downstreamHA': 'CTGGATC'
-
+        'Reference_Seq': 'TTGATCGTAGGACAC...', 
     '''
+
     import pandas as pd
     
     #This is the input file containing the TFs we want to query
@@ -108,20 +90,44 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation = "inp
     TFsdf = TFsdf.assign(Reference_Seq = "")
 
     for index, rowcontents in TFsdf.iterrows():
-            #Define 3.2kb gene region
-            regionStart = rowcontents["Start"] - 1601
-            regionStop = rowcontents["Stop"] + 1600
+        #Define 3.2kb gene region
+        regionStart = rowcontents["Start"] - 1601
+        regionStop = rowcontents["Stop"] + 1600
 
-            #Add reference sequence
-            refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
-            TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
-
-    #Create fragments for the HDR-arm
-    TFsdf = make_homology_arm_fragments(TFsdf)
+        #Add reference sequence
+        refPosStrandSeq = str(refSeqPerChromosome[rowcontents["Chromosome"]][regionStart:regionStop]) #This is the + strand seq, so goes from end to beginning
+        TFsdf.at[index,"Reference_Seq"] = revComp(refPosStrandSeq)
 
     #re-index
     TFsdf = TFsdf.reset_index()
     del TFsdf["index"]
+
+    return TFsdf
+
+def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
+    """
+    Takes in the dataframe of information about start/stop codon regions, 
+    and appends with columns for the 225 bp upstream and downstream of
+    this site (the homlogy arm fragments).
+
+    input: TFsDF - as defined in previous function and on GitHub README, with Reference_Seq 1600bp either side of the start/stop.
+           refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
+    output: TFsDF appended with leftHA and rightHA
+
+    """
+    for index, rowcontents in TFsdf.iterrows():
+
+            #Define 225 bp region left and right from Start and Stop of gene region
+            leftStart = rowcontents["Start"] - 226 #SeqIO takes the start coordinate as exclusive, which is why we include one extra bp
+            leftStop = rowcontents["Start"]  - 1 #SeqIO takes the end coordinate as inclusive, so we subtract one bp because we want to exlculde the first position of the gene region
+            rightStart = rowcontents["Stop"] #SeqIO takes the start coordinate as exclusive, which is fine because we want to exclude the last position of the gene region
+            rightStop = rowcontents["Stop"] + 225 #SeqIO takes the end coordinate as inclusive, which is fine
+            
+            #Add left and right homology arm (HA)
+            leftHA = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][leftStart:leftStop]))
+            rightHA = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][rightStart:rightStop]))
+            TFsdf.at[index,"leftHA"] = leftHA
+            TFsdf.at[index, "rightHA"] = rightHA
 
     return TFsdf
 
@@ -193,14 +199,10 @@ def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
     gRNAFileAnnotation = gRNAFileAnnotation.assign(target_site_variation= "")
 
     # reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
-    index = 0 #TODO@Marina improve this code
-
     # for each attribute value, extract the gene ID and symbol and add this to the new categories
-    for attribute in gRNAFileAnnotation['attributes']:
-
+    for index, attribute in enumerate(gRNAFileAnnotation['attributes']):
         fullatt = (attribute).split(";")
         gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
-        index+=1
     
     # shorten file to essential information
     GenomeCoordinates = gRNAFileAnnotation[["target_site_variation", "fmin", "fmax", "#chr", "strand"]]
@@ -211,7 +213,7 @@ def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
         # select sgRNA that are located maximally 20 bp downstream of the start/stop codon of the transcription factors
     filtered_gRNAs = GenomeCoordinates[(GenomeCoordinates['target_site_variation'] == "target_site_variation=none observed") & 
                                                   (GenomeCoordinates['#chr'] == tfSingleRow["Chromosome"]) & 
-                                                  (GenomeCoordinates['fmin']-1 >= tfSingleRow["Start"] - 20) & 
+                                                  (GenomeCoordinates['fmin'] >= tfSingleRow["Start"] - 20) & 
                                                   (GenomeCoordinates['fmax'] <= tfSingleRow["Stop"] + 20)]
 
     #add sgRNA sequence using coordinates
@@ -234,6 +236,7 @@ def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
 def gRNA_stringencyIterator(tfSingleRow, refSeqPerChromosome):
     """
     Iterates trough gRNA stringency files until at least one gRNA is returned from filter_gRNAs function.
+    Function depends on filter_gRNA() functioon.
 
     params:
         tfSingleRow: a pandas Series for one row of the tfsDF dataframe produced by make_dataframe_from_TFs_list
@@ -242,24 +245,25 @@ def gRNA_stringencyIterator(tfSingleRow, refSeqPerChromosome):
     returns:
         filtered_gRNAs: a df of gRNAs that meet the conditions at this site
     """
+    import pandas as pd
 
-    gRNAfiles = ["inputfiles/Hu.2019.8.28.sgRNA_designs/NoOffTarget_high_stringency.gff", "inputfiles/Hu.2019.8.28.sgRNA_designs/NoOffTarget_med_stringency.gff", "inputfiles/Hu.2019.8.28.sgRNA_designs/NoOffTarget_low_stringency.gff", "inputfiles/Hu.2019.8.28.sgRNA_designs/1to3NonCdsOffTarget_low_stringency.gff", "inputfiles/Hu.2019.8.28.sgRNA_designs/ManyOffTarget_low_stringency.gff"]
+    gRNAfiles = ["inputfiles/NoOffTarget_high_stringency.gff", "inputfiles/NoOffTarget_med_stringency.gff", 
+    "inputfiles/NoOffTarget_low_stringency.gff", "inputfiles/1to3NonCdsOffTarget_low_stringency.gff", 
+    "inputfiles/ManyOffTarget_low_stringency.gff"]
 
     #Set up sgRNA variable
-    sgRNA = ""
-    file_ind = 0
+    sgRNA = pd.DataFrame()
+    file_ind = 0 
 
     #Loop through files and retain the filtered sgRNA df if at least one row is present
-    while len(sgRNA) == 0:
+    while sgRNA.empty and file_ind <=4:
         sgRNA = filter_gRNA(gRNAfiles[file_ind], tfSingleRow, refSeqPerChromosome)
         print(f"stringency {file_ind}")
         file_ind +=1
-        if file_ind == 4: #If we've tried all files and sgRNA is still 0, break out of loop
-            break
     
     return sgRNA
 
-def sgRNApositionCheck(sgRNAdf):
+def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
     """
     Given filtered sgRNAs for a start/stop site in the 'filtered_gRNAs' format, will create dataframe containing positional information and condition checks
     for each sgRNA.
@@ -281,14 +285,14 @@ def sgRNApositionCheck(sgRNAdf):
     sgRNAdf["positionScore"] = sgRNAdf["fmax"] - sgRNAdf["Stop"]
     
     #Dataframe containing parameter ranges to interpret the positon score, based on gene strand, sgRNA strand, and start/stop
-    positionScoreParameters = pd.read_excel("inputfiles/fmaxStopScore.xlsx")
+    positionScoreParameters = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx")
 
     #Per parameter, append the sgRNAdf with a TRUE/FALSE value per condition.
     #Also add positional information about the CDS boundary, position of the last G/C, and the cut site from the conditions file.
 
     #Start by adding columns for these to sgRNAdf
-    booleanColumns = ["PAM_in_start/stop", "<15_bp3’_overhang", "PAM_in_CDS", "PAM_outside_CDS"]
-    positionColumns = ["CDS_boundary", "lastG", "cutSite"]
+    booleanColumns = ["PAM_in_start/stop", "max_15_bp_3’_overhang", "PAM_in_CDS", "PAM_outside_CDS"]
+    positionColumns = ["CDS_boundary", "last_G/C", "cut_site"]
     sgRNAdf = sgRNAdf.reindex(columns = sgRNAdf.columns.tolist() + booleanColumns + positionColumns)
     
     #Iterating through sgRNAdf, extract the appropriate row of the conditions file and add new information to sgRNAdf.
@@ -301,31 +305,33 @@ def sgRNApositionCheck(sgRNAdf):
         #Per column, input true/false as to whether the position score meets that condition
         for col in booleanColumns:
             colValue = conditions.at[0,col] #extract parameter range values from dataframe
-            #Process the value into a range (in format [min, max])
-            #If the values should be 'more than' or 'less than', 25 is used as a max or -25 as min because distances cannot be more than 20
-            if ">" in colValue: #could simplify this further by just defining all as ranges in excel
-                minMax = [int(colValue[1:])+1, 25]
-            elif "<" in colValue:
-                minMax = [-25,int(colValue[1:])]
-            elif ":" in colValue:
+            #Process the value into a range (in format [min, max]
+            if ":" in colValue:
                 min, max = colValue.split(":")
-                minMax = [int(min), int(max)]
+                minMax = [min, max]
+                for index, value in enumerate(minMax):
+                    if value == "minDistance":
+                        minMax[index] = minDistance
+                    elif value == "maxDistance":
+                        minMax[index] = maxDistance
+                    else: minMax[index] = int(value)
             else:
                 print("Incorrect format of range value. Verify inputs.")
 
             #Into the output dataframe, print true/false as to whether the positionScore has met the condition for that column
-            sgRNAdf.at[ind, col] = bool(sgRNA["positionScore"] in range(minMax[0], minMax[1]))
+            sgRNAdf.loc[ind, col] = bool(sgRNA["positionScore"] in range(minMax[0], minMax[1]))
        
         #Calculate PAM last G or C position using positionScore. Add this to the sgRNA catalogue.
-        sgRNAdf.at[ind, "lastG"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "lastG"])
+        sgRNAdf.loc[ind, "last_G/C"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "last_G/C"])
 
         #Calculate cutsite coordinate using positionScore. Add this to the sgRNA catalogue.
-        sgRNAdf.at[ind, "cutSite"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "cutSite"])
+        sgRNAdf.loc[ind, "cut_site"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "cut_site"])
 
         #Keep CDS boundary position in output df
-        sgRNAdf.at[ind, "CDS_boundary"] = conditions.at[0, "CDS_boundary"]
+        sgRNAdf.loc[ind, "CDS_boundary"] = conditions.at[0, "CDS_boundary"]
     
     return sgRNAdf
+    
 
 def checkCDSCutandOrder(sgRNAdf):
     """
@@ -494,7 +500,7 @@ def codonFragmenter(winnerdf):
 
     #add start/stop - this is added as 'ATG' (even if stop) but will never be mutated. As HAL and HAR only will be replaced into tfsDF,
     #this will not affect original sequences.
-    codonList.append('ATG')
+    codonList.append('ATG') #Note from Marina: I think this should be XXX if not ATG/ stop
 
     #Add HAR codons
     for codonBase1 in range(0, len(HAR), 3):
@@ -731,7 +737,7 @@ def mutator(winnerdf):
 
     return winnerdfmutated
 
-def sgRNArunner():
+def sgRNArunner(inputfile):
     """
     Check functions so far work with the proposed changes.
     """
@@ -739,30 +745,33 @@ def sgRNArunner():
     #set up reference sequence Bio SeqIO element
     refSeqPerChromosome = refSeq()
 
-    #Make the dataframe for all transcription factor start/stop site infp
-    TFsdf = make_dataframe_from_TFs_list("inputfiles/TFs.xlsx", refSeqPerChromosome)
+    #Make the dataframe for all transcription factor start/stop sites
+    TFsdf = make_dataframe_from_TFs_list(inputfile, refSeqPerChromosome)
+
+    #Create fragments for the HDR-arm and append as new column to dataframe
+    TFsdf = make_homology_arm_fragments(TFsdf, refSeqPerChromosome)
     
-    #set up the output DF - this is the winning sgRNA per site in TFsdf
-    TFsdfWinnersandMutated = pd.DataFrame(columns=["fmin", "fmax", "#chr", "strand", "sgRNA_sequence", "Gene_ID",
+    #set up the output DF - will contain a winning sgRNA per site in TFsdf
+    TFsdfWinnersandMutated = pd.DataFrame(columns=["fmin", "fmax", "strand", "sgRNA_sequence", "Gene_ID",
                                                    "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop",
                                                    "Strand", "Reference_Seq", "upstreamHA", "downstreamHA", "positionScore",
                                                     "PAM_in_start/stop", "<15_bp3’_overhang", "PAM_in_CDS", "PAM_outside_CDS",
                                                     "CDS_boundary", "lastG", "cutSite", "mutated"])
     
-    #Per row of this dataframe, select a guideRNA
+    #Per row of transcription factor start/stop site dataframe, select a guideRNA
     for ind, row in TFsdf.iterrows():
         print(f"Selecting guide RNA for TFsdf row {ind}")
 
         filtered_sgRNA = gRNA_stringencyIterator(row, refSeqPerChromosome)
 
         #Score the sgRNAs for this site
-        sgRNAdf = sgRNApositionCheck(filtered_sgRNA)
+        sgRNAdf = sgRNApositionCheck(filtered_sgRNA, -25, 25)
 
         #Add a column to establish whether mutation has occurred. This will be set to 'True' in the mutator function and starts as False by default.
         sgRNAdf['mutated'] = False
 
         #If no sgRNAs were found at any stringency
-        if len(sgRNAdf) == 0:
+        if not sgRNAdf:
             print(f"No sgRNAs found at all stringencies for {ind}.")
 
             #Just input the information about this site into the final DF. The columns about the guideRNA will be filled with 'NaN', indicating no guideRNA could be found.
@@ -786,5 +795,3 @@ def sgRNArunner():
         TFsdfWinnersandMutated.to_excel("outputFiles/winningsgRNAs.xlsx")
 
     return TFsdfWinnersandMutated
-
-sgRNArunner()
