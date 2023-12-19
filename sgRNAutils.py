@@ -112,7 +112,7 @@ def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
 
     input: TFsDF - as defined in previous function and on GitHub README, with Reference_Seq 1600bp either side of the start/stop.
            refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
-    output: TFsDF appended with leftHA and rightHA
+    output: TFsDF appended with HAL and HAR
 
     """
     for index, rowcontents in TFsdf.iterrows():
@@ -124,10 +124,10 @@ def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
             rightStop = rowcontents["Stop"] + 225 #SeqIO takes the end coordinate as inclusive, which is fine
             
             #Add left and right homology arm (HA)
-            leftHA = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][leftStart:leftStop]))
-            rightHA = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][rightStart:rightStop]))
-            TFsdf.at[index,"leftHA"] = leftHA
-            TFsdf.at[index, "rightHA"] = rightHA
+            HAL = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][leftStart:leftStop]))
+            HAR = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][rightStart:rightStop]))
+            TFsdf.at[index,"HAL"] = HAL
+            TFsdf.at[index, "HAR"] = HAR
 
     return TFsdf
 
@@ -160,16 +160,13 @@ def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inp
     codon_list = same_aa_df["codon"].values.tolist()
 
     #Keep only codons where the indicated base has changed (this will also remove original codon)
-    changedCodons = []
-    for codon in codon_list:
-        if codon[base_to_change-1] != query_codon[base_to_change-1]:
-            changedCodons.append(codon)
+    changedCodons = [codon for codon in codon_list if codon[base_to_change-1] != query_codon[base_to_change-1]]
             
     return changedCodons
 
-def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
+def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
     """
-    Selects gRNAs within 20pb of the start/stop site and returns these in a dataframe with information about their coordinates and the start/stop site.
+    Selects gRNAs within window of the start/stop site and returns these in a dataframe with information about their coordinates and the start/stop site.
     params:
         gRNA_file: gff file
         tfSingleRow: a pandas series for one row of the original tfsDF with the following format
@@ -213,8 +210,8 @@ def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
         # select sgRNA that are located maximally 20 bp downstream of the start/stop codon of the transcription factors
     filtered_gRNAs = GenomeCoordinates[(GenomeCoordinates['target_site_variation'] == "target_site_variation=none observed") & 
                                                   (GenomeCoordinates['#chr'] == tfSingleRow["Chromosome"]) & 
-                                                  (GenomeCoordinates['fmin'] >= tfSingleRow["Start"] - 20) & 
-                                                  (GenomeCoordinates['fmax'] <= tfSingleRow["Stop"] + 20)]
+                                                  (GenomeCoordinates['fmin'] >= tfSingleRow["Start"] - window) & 
+                                                  (GenomeCoordinates['fmax'] <= tfSingleRow["Stop"] + window)]
 
     #add sgRNA sequence using coordinates
     filtered_gRNAs = filtered_gRNAs.assign(sgRNA_sequence= "")
@@ -233,7 +230,7 @@ def filter_gRNA(gRNA_file, tfSingleRow, refSeqPerChromosome):
 
     return filtered_gRNAs
 
-def gRNA_stringencyIterator(tfSingleRow, refSeqPerChromosome):
+def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome):
     """
     Iterates trough gRNA stringency files until at least one gRNA is returned from filter_gRNAs function.
     Function depends on filter_gRNA() functioon.
@@ -241,6 +238,7 @@ def gRNA_stringencyIterator(tfSingleRow, refSeqPerChromosome):
     params:
         tfSingleRow: a pandas Series for one row of the tfsDF dataframe produced by make_dataframe_from_TFs_list
         refSeqPerChromosome: a Bio SeqIO dictionary for the D. melanogaster genome
+        window: the window size to search for gRNAs around the start/stop site
 
     returns:
         filtered_gRNAs: a df of gRNAs that meet the conditions at this site
@@ -257,7 +255,7 @@ def gRNA_stringencyIterator(tfSingleRow, refSeqPerChromosome):
 
     #Loop through files and retain the filtered sgRNA df if at least one row is present
     while sgRNA.empty and file_ind <=4:
-        sgRNA = filter_gRNA(gRNAfiles[file_ind], tfSingleRow, refSeqPerChromosome)
+        sgRNA = filter_gRNA(gRNAfiles[file_ind], window, tfSingleRow, refSeqPerChromosome)
         print(f"stringency {file_ind}")
         file_ind +=1
     
@@ -267,8 +265,10 @@ def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
     """
     Given filtered sgRNAs for a start/stop site in the 'filtered_gRNAs' format, will create dataframe containing positional information and condition checks
     for each sgRNA.
+    minDistance and maxDistance must be divisible by 3.
 
-    params: df: a pandas df of sgRNAs for one start/stop site:
+    params: minDistance, maxDistance: minimum and maximum distances from the start/stop site that the sgRNA can be in
+            df: a pandas df of sgRNAs for one start/stop site:
             fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	... downstreamHA
         0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
         1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
@@ -280,6 +280,12 @@ def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
                     
     """
     import pandas as pd
+    import sys
+    import numpy as np
+
+    # Sanity check for divisibility by 3
+    if minDistance % 3 != 0 or maxDistance % 3 != 0:
+        raise ValueError("minDistance and maxDistance must be divisible by 3.")
 
     #Adding position scores (fmax - stop)
     sgRNAdf["positionScore"] = sgRNAdf["fmax"] - sgRNAdf["Stop"]
@@ -288,51 +294,57 @@ def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
     positionScoreParameters = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx")
 
     #Per parameter, append the sgRNAdf with a TRUE/FALSE value per condition.
-    #Also add positional information about the CDS boundary, position of the last G/C, and the cut site from the conditions file.
+    #Also add positional information about the CDS boundary, position of the last G/C, the cut site and the sgRNA recognition site
+    #from the conditions file.
 
     #Start by adding columns for these to sgRNAdf
-    booleanColumns = ["PAM_in_start/stop", "max_15_bp_3’_overhang", "PAM_in_CDS", "PAM_outside_CDS"]
-    positionColumns = ["CDS_boundary", "last_G/C", "cut_site"]
-    sgRNAdf = sgRNAdf.reindex(columns = sgRNAdf.columns.tolist() + booleanColumns + positionColumns)
+    booleanColumns = ["PAM_in_start/stop", "max_15_bp_3’_overhang", "PAM_in_CDS", "PAM_outside_CDS", "SRS_in_CDS"]
+    positionColumns = ["CDS_boundary", "non_CDS_boundary", "SRS_boundary", "mutable_PAM"]
+
+    # Use assign for adding new columns
+    sgRNAdf = sgRNAdf.assign(**{col: None for col in ["CDS_side"] + ["non_CDS_side"]+ booleanColumns + positionColumns + ["cut_site"]})
     
     #Iterating through sgRNAdf, extract the appropriate row of the conditions file and add new information to sgRNAdf.
     for ind, sgRNA in sgRNAdf.iterrows():
+        conditions = positionScoreParameters.loc[
+            (positionScoreParameters["start/stop"] == sgRNA['Gene_Region']) &
+            (positionScoreParameters["strand_type"] == sgRNA['Strand']) &
+            (positionScoreParameters["sgRNA_strand"] == sgRNA['strand'])
+        ].reset_index(drop=True)
 
-        #Extract the appropriate parameter row per sgRNA
-        conditions = positionScoreParameters.loc[(positionScoreParameters["start/stop"] == sgRNA['Gene_Region']) & (positionScoreParameters["strand_type"] == sgRNA['Strand']) & (positionScoreParameters["sgRNA_strand"] == sgRNA['strand'])]
-        conditions = conditions.reset_index(drop = True)
-        
-        #Per column, input true/false as to whether the position score meets that condition
-        for col in booleanColumns:
-            colValue = conditions.at[0,col] #extract parameter range values from dataframe
-            #Process the value into a range (in format [min, max]
+        for col in booleanColumns + positionColumns:
+            colValue = conditions.at[0, col]
+            
             if ":" in colValue:
                 min, max = colValue.split(":")
                 minMax = [min, max]
-                for index, value in enumerate(minMax):
+                newMinMax = []
+                
+                for value in minMax:
                     if value == "minDistance":
-                        minMax[index] = minDistance
+                        newMinMax.append(minDistance)
                     elif value == "maxDistance":
-                        minMax[index] = maxDistance
-                    else: minMax[index] = int(value)
-            else:
-                print("Incorrect format of range value. Verify inputs.")
+                        newMinMax.append(maxDistance+1)
+                    else:
+                        newMinMax.append(int(value))
 
-            #Into the output dataframe, print true/false as to whether the positionScore has met the condition for that column
-            sgRNAdf.loc[ind, col] = bool(sgRNA["positionScore"] in range(minMax[0], minMax[1]))
-       
-        #Calculate PAM last G or C position using positionScore. Add this to the sgRNA catalogue.
-        sgRNAdf.loc[ind, "last_G/C"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "last_G/C"])
+            if col in booleanColumns:
+                sgRNAdf.at[ind, col] = bool(sgRNA["positionScore"] in range(newMinMax[0], newMinMax[1]))
+
+            if col in positionColumns:
+                sgRNAdf.at[ind, col] = list(range(newMinMax[0], newMinMax[1]))
 
         #Calculate cutsite coordinate using positionScore. Add this to the sgRNA catalogue.
-        sgRNAdf.loc[ind, "cut_site"] = sgRNAdf.at[ind, "positionScore"] + int(conditions.at[0, "cut_site"])
+        sgRNAdf.loc[ind, "cut_site"] = int(conditions.at[0, "cut_site"]) - sgRNA["positionScore"]
 
-        #Keep CDS boundary position in output df
-        sgRNAdf.loc[ind, "CDS_boundary"] = conditions.at[0, "CDS_boundary"]
-    
+        # Add CDS side to sgRNA catalogue
+        sgRNAdf.loc[ind, "CDS_side"] = conditions.at[0, "CDS_side"]
+
+        # Add non CDS side to sgRNA catalogue
+        sgRNAdf.loc[ind, "non_CDS_side"] = conditions.at[0, "non_CDS_side"]
+
     return sgRNAdf
     
-
 def checkCDSCutandOrder(sgRNAdf):
     """
     Given an sgRNAdf, will calculate firstly rows where the sgRNA cuts inside CDS. If multiple, selects that which cuts closest to start/stop.
@@ -372,23 +384,11 @@ def checkCDSCutandOrder(sgRNAdf):
 
     #extract CDS boundary value
     sgRNAdf.reset_index(inplace= True, drop= True)
-    CDSBoundary = sgRNAdf.at[0, 'CDS_boundary']
-
     #Calculate sgRNA/cut site difference
-    sgRNAdf["cutsite-CDSbound"] = abs(sgRNAdf["cutSite"] - 20)
-    
+    sgRNAdf["cutsite-CDSbound"] = abs(sgRNAdf["cut_site"])
     #C. Check cut site in CDS
-    
-    #Define CDS boundary range
-    if ">" in CDSBoundary: #could simplify this further by just defining all as ranges in excel
-        CDSBoundaryRange = [int(CDSBoundary[1:])+1, 43]
-    elif "<" in CDSBoundary:
-        CDSBoundaryRange = [0,int(CDSBoundary[1:])]
-    else:
-        print("CDS boundary value not found/invalid")
-
     #filter for only sgRNAs that cut in CDS
-    conditionC = sgRNAdf[sgRNAdf["cutSite"].between(CDSBoundaryRange[0], CDSBoundaryRange[1])]
+    conditionC = sgRNAdf[sgRNAdf["cut_site"].isin(sgRNAdf["CDS_boundary"])]
 
     #if there are sgRNAs that cut in CDS, sort by distance of cutsite and CDS start. Select the one that cuts closest.
     if len(conditionC) > 0: #cuts in CDS, closest cut (C1, C2)
@@ -428,7 +428,7 @@ def find_best_gRNA(sgRNAdf):
         winnersgRNA = conditionA.at[0, "sgRNA_sequence"]
         winnerFound = True
 
-    #B. sgRNA overhang is less than 15bp
+    #B. sgRNA overhang is max 15bp
     if winnerFound == False:
         conditionB = sgRNAdf[sgRNAdf["<15_bp3’_overhang"] == True]
         if len(conditionB) == 1:
@@ -451,12 +451,13 @@ def find_best_gRNA(sgRNAdf):
 
     return winnersgRNA, mutationNeeded
 
-def codonFragmenter(winnerdf):
+def codonFragmenter(winnerdf, side, side_boundary):
     """
-    For the start/stop site, will create a list of codons in the appropriate range where sgRNAs might be found (start/stop ±20 bp).
+    For the CDS of each start/stop, will create a list of codons.
     If gene is on - strand, these will be revComp codons.
 
     params:
+        side: "HAL" or "HAR" depending on where base to mutate
         winnerdf: pandas Series for the row of the sgRNA dataframe containing information about the winner sgRNA:
             fmin                                                            396165
             fmax                                                            396187
@@ -484,38 +485,36 @@ def codonFragmenter(winnerdf):
             mutated                                                          False
 
     returns:
-        codonList: codons from the ±21bp region around the start/stop site in mutable format (revComp if gene is -)
+        codonList: codons from CDS respective to the region of interest in mutable format (revComp if gene is -)
     """
+    import numpy as np
     
-    #Extract HA sequences - just the 21bp near start/stop
-    HAL = winnerdf["upstreamHA"][-21:]
-    HAR = winnerdf["downstreamHA"][0:21]
+    #Extract HA sequence where CDS
+    HA = winnerdf[side]
 
+    if side == "HAR":
+        winnerdf[f"{side_boundary}_HA"] = np.array(winnerdf[side_boundary]) - 1 #HA is 1bp to the right of stop
+        mutable_region = HA[:winnerdf["side_boundary_HA"][-1]+1]
+    
+    if side == "HAL":
+        winnerdf[f"{side_boundary}_HA"] = np.array(winnerdf[side_boundary]) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
+        mutable_region = HA[winnerdf["side_boundary_HA"][0]+1:]
+    
     #Start codon list
     codonList = []
 
-    #Add HAL codons
-    for codonBase1 in range(0, len(HAL), 3):
-        codonList.append(HAL[codonBase1:codonBase1+3])
+    #Chop up the CDS into codons
+    for codonBase1 in range(0, len(mutable_region), 3):
+        codon = mutable_region[codonBase1:codonBase1+3]    
+        if winnerdf["Strand"] == '-': #Create reverse complement of every codon if gene is on - strand
+            codonList.append(revComp(codon))
+        else: codonList.append(codon)
 
-    #add start/stop - this is added as 'ATG' (even if stop) but will never be mutated. As HAL and HAR only will be replaced into tfsDF,
-    #this will not affect original sequences.
-    codonList.append('ATG') #Note from Marina: I think this should be XXX if not ATG/ stop
+    return codonList, winnerdf
 
-    #Add HAR codons
-    for codonBase1 in range(0, len(HAR), 3):
-        codonList.append(HAR[codonBase1:codonBase1+3])
-    
-    #Define gene strand:
-    if winnerdf["Strand"] == '-': #If on the minus strand, take revComp per codon
-        for ind, codon in enumerate(codonList):
-            codonList[ind] = revComp(codon)
-
-    return codonList
-
-def codonReverseFragmenter(codonsList, winnerdf):
+def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     """
-    Will take a fragmented list of codons of the start/stop site region and replace the mutated HAL/HAR arms in tfsDF.
+    Will take a fragmented list of codons of CDS around the region of interest and replace the mutated HAL/HAR arms in tfsDF.
     If gene is on - strand, revComp codons will be reversed back to the + strand sequences.
 
     params:
@@ -574,25 +573,133 @@ def codonReverseFragmenter(codonsList, winnerdf):
         mutated                                                          False
 
     """
-    HAL = ""
-    HAR = ""
-
     #return to + strand if the gene is on -
     if winnerdf["Strand"] == '-':
         for ind, codon in enumerate(codonsList):
             codonsList[ind] = revComp(codon)
     
-    #replace HAL
-    for codon in range(0, 7):
-        HAL += codonsList[codon]
+    #recombine the codons of the CDS
+    mutable_region = ''.join(codonsList)
 
-    #replace HAR
-    for codon in range(8, 15):
-        HAR += codonsList[codon]
+    #replace mutated HA
+    if winnerdf[side] == "HAR":
+        winnerdf.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side_boundary}_HA"][-1]+1:]
+    if winnerdf[side] == "HAL":
+        winnerdf.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side_boundary}_HA"][0]+1] + mutable_region
 
-    #replace mutated HAL and HAR
-    winnerdf.at["upstreamHA"] = winnerdf["upstreamHA"][:-21] + HAL
-    winnerdf.at["downstreamHA"] = HAR + winnerdf["downstreamHA"][21:]
+    return winnerdf
+
+def mutator_Marina(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM = False):
+
+    """
+    (1) converts the position of the base that we would like to try and mutate into a codon position
+    (2) finds synonymous mutations for the codon in the the codon position of the fragmented CDS
+    (3) picks a synonymous mutation that mutates the base that we would like to try and mutate if possible
+    (4) returns the mutated fragemented CDS if mutation was possible or throws exemption
+
+    params:
+        basePosition: integer, base position within sgRNA relative to fmax
+        fragmentedCDS: list, codons in direction of translation between gene region of interest and maxDistance or minDistance 
+    """
+    pos_relative_to_CDS = basePosition + winnerdf["positionScore"] - winnerdf["CDS_boundary"][0] # explained in Positions section of MutationLogic.pptx
+    codonNumber = codonCoordinates.at[pos_relative_to_CDS, 'codon'] #this is the codon number (as an index in mutableCodons)
+    codon = fragmentedCDS[codonNumber] #This is the codon we want to mutate
+    base = codonCoordinates.at[pos_relative_to_CDS, 'base'] #This is the base within that codon (1-3)
+    potentialCodons = find_synonymous_codons(query_codon =codon, base_to_change= base)
+        
+    if potentialCodons:
+        if PAM == True:
+            #check for NGA and remove if present
+            potentialCodons = [codons for codons in potentialCodons if codons[-2:] != "GA"]
+        fragmentedCDS[codonNumber] = potentialCodons[0]
+        
+    else: 
+        raise ValueError("No synonymous codons found.")
+    
+    return fragmentedCDS
+
+def find_best_mutation(winnerdf, maxDistance):
+    """
+        In the case where a fragment needs to be mutated, will mutate in CDS (preferably PAM, if not then in the sgRNA). 
+        If not possible, will mutate PAM outside of CDS to NTG/CTN.
+        
+        params:
+            winnerdf: the pandas series of the winning sgRNA in format:
+                fmin                                                            396165
+                fmax                                                            396187
+                #chr                                                                 X
+                strand                                                               -
+                sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
+                Gene_ID                                                    FBgn0004170
+                Transcript_ID                                              FBtr0070073
+                Chromosome                                                           X
+                Gene_Region                                                start_codon
+                Start                                                           396177
+                Stop                                                            396179
+                Strand                                                               +
+                Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
+                upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
+                downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
+                positionScore                                                        8
+                PAM_in_start/stop                                                False
+                <15_bp3’_overhang                                                 True
+                PAM_in_CDS                                                       False
+                PAM_outside_CDS                                                   True
+                CDS_boundary                                                       >22
+                lastG                                                              8.0
+                cutSite                                                           13.0
+                mutated                                                          False
+
+        """
+    import pandas as pd
+
+    if winnerdf["Strand"] == '+':
+        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinatePlus", index_col= 0)
+    elif winnerdf["Strand"] == '-':
+        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinateMinus", index_col= 0)
+
+    # Condition A: PAM in CDS
+    if winnerdf["PAM_in_CDS"] == True and winnerdf["mutated?"] == False:
+        fragmentedCDS, winnerdf = codonFragmenter(winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
+
+        for basePosition in winnerdf["mutable_PAM"]:
+            
+            try: 
+                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, PAM=True)
+                winnerdf["mutated?"] = True
+                break
+
+            except ValueError: continue
+
+        winnerdf = codonReverseFragmenter(fragmentedCDS, winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
+
+    # Condition B: SRS in CDS
+    if winnerdf["sgRNA_recognition_site_in_CDS"] == True and winnerdf["mutated?"] == False:
+        number_of_mutations = 0
+        position = 0
+        fragmentedCDS, winnerdf = codonFragmenter(winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
+
+        while number_of_mutations < 2 and position in range(0, len(winnerdf["sgRNA_recognition_site_in_CDS"])):
+                
+            try: 
+                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf)
+                winnerdf["mutated?"] = True
+                position += 1
+                number_of_mutations += 1
+
+            except ValueError: continue
+        
+        winnerdf = codonReverseFragmenter(fragmentedCDS, winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
+    
+    # Condition C: PAM outside of CDS
+    if winnerdf["mutated?"] == False:
+        fragmented_non_CDS_side, winnerdf = codonFragmenter(winnerdf, winnerdf["non_CDS_side"], winnerdf["non_CDS_boundary"])
+        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx", sheet_name=winnerdf["coordinates"], index_col= 0)
+        pos_relative_to_gene_region = winnerdf["mutable_PAM"][0] + winnerdf["positionScore"]
+        base = codonCoordinates.at[pos_relative_to_gene_region, 'relative_coordinate_CDS'] #This is one base of the PAM within HA 
+        newHA = winnerdf[f"{PAM_side}"][:base-1] + 'T' + winnerdf[f"{PAM_side}"][base:] #add a 'T' where the old base was in HA
+        winnerdf[f"{PAM_side}"] = newHA
+        winnerdf["mutated?"] = True
 
     return winnerdf
 
@@ -737,9 +844,13 @@ def mutator(winnerdf):
 
     return winnerdfmutated
 
-def sgRNArunner(inputfile):
+def sgRNArunner(inputfile, window = 21):
     """
     Check functions so far work with the proposed changes.
+    params:
+        inputfile:
+        minDistance: window size left of region of interest to search for sgRNAs in, has to be divisible by 3, minimum -42
+        maxDistance window size right of region of interest to search for sgRNAs in, has to be divisible by 3, maximum 42
     """
     import pandas as pd
     #set up reference sequence Bio SeqIO element
@@ -762,10 +873,13 @@ def sgRNArunner(inputfile):
     for ind, row in TFsdf.iterrows():
         print(f"Selecting guide RNA for TFsdf row {ind}")
 
-        filtered_sgRNA = gRNA_stringencyIterator(row, refSeqPerChromosome)
+        filtered_sgRNA = gRNA_stringencyIterator(row, window, refSeqPerChromosome)
 
+        #Derive min and max distance from stop position
+        minDistance = (window + 3) * -1 # leave a 3bp gap to account for start/stop site
+        maxDistance = window
         #Score the sgRNAs for this site
-        sgRNAdf = sgRNApositionCheck(filtered_sgRNA, -25, 25)
+        sgRNAdf = sgRNApositionCheck(filtered_sgRNA, minDistance, maxDistance)
 
         #Add a column to establish whether mutation has occurred. This will be set to 'True' in the mutator function and starts as False by default.
         sgRNAdf['mutated'] = False
@@ -786,7 +900,7 @@ def sgRNArunner(inputfile):
             winnerdf.reset_index(inplace= True, drop= True)
             winnerdf = winnerdf.loc[0] #This is the pandas series for the same information
             if mutationNeeded == True: #run mutator if indicated
-                winnerdf = mutator(winnerdf) #this will mutate HAL or HAR as needed and return the original DF with mutated sequences, and the mutated column set to True
+                winnerdf = find_best_mutation(winnerdf, maxDistance) #this will mutate HAL or HAR as needed and return the original DF with mutated sequences, and the mutated column set to True
         
             #Add the winning sgRNA into the output df for this TF start/stop site
             TFsdfWinnersandMutated.loc[ind] = winnerdf
