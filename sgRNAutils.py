@@ -115,54 +115,21 @@ def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
     output: TFsDF appended with HAL and HAR
 
     """
-    for index, rowcontents in TFsdf.iterrows():
+    for index, row in TFsdf.iterrows():
 
             #Define 225 bp region left and right from Start and Stop of gene region
-            leftStart = rowcontents["Start"] - 226 #SeqIO takes the start coordinate as exclusive, which is why we include one extra bp
-            leftStop = rowcontents["Start"]  - 1 #SeqIO takes the end coordinate as inclusive, so we subtract one bp because we want to exlculde the first position of the gene region
-            rightStart = rowcontents["Stop"] #SeqIO takes the start coordinate as exclusive, which is fine because we want to exclude the last position of the gene region
-            rightStop = rowcontents["Stop"] + 225 #SeqIO takes the end coordinate as inclusive, which is fine
+            leftStart = row["Start"] - 224 -1
+            leftStop = row["Start"]  - 1 
+            rightStart = row["Stop"] + 1 
+            rightStop = row["Stop"] + 224 + 1
             
             #Add left and right homology arm (HA)
-            HAL = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][leftStart:leftStop]))
-            HAR = revComp(str(refSeqPerChromosome[rowcontents["Chromosome"]][rightStart:rightStop]))
+            HAL = str(refSeqPerChromosome[row["Chromosome"]][leftStart-1:leftStop])
+            HAR = str(refSeqPerChromosome[row["Chromosome"]][rightStart-1:rightStop])
             TFsdf.at[index,"HAL"] = HAL
             TFsdf.at[index, "HAR"] = HAR
 
     return TFsdf
-
-def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inputfiles/codon_table.xlsx"):
-
-    '''
-    Uses the amino acids table to select codons that encode for the same amino acid as the query codon. Will ensure the specified base has been mutated.
-
-    Params:
-        query_codon: string, codon to select synonymous codons for
-        base_to_change: the base within the codon that needs to change. Numeric value from 1-3.
-        codon_table_excel: string, path to an excel file that lists per codon which amino acid that codon encodes.
-    
-    Returns:
-        synonymous_codons: list of strings, each string is a codon that encodes for the same amino acid as the query codon.
-    
-    '''
-
-    import pandas as pd
-
-    codon_table = pd.read_excel(codon_table_excel)
-
-    #Extract amino acid given codon
-    amino_acid_query = codon_table[codon_table['codon'] == query_codon].iloc[0]["amino_acid"]
-
-    #Subset df for other rows corresponding to this amino acid
-    same_aa_df=codon_table[codon_table["amino_acid"] == amino_acid_query]
-
-    #Convert the codons to a list
-    codon_list = same_aa_df["codon"].values.tolist()
-
-    #Keep only codons where the indicated base has changed (this will also remove original codon)
-    changedCodons = [codon for codon in codon_list if codon[base_to_change-1] != query_codon[base_to_change-1]]
-            
-    return changedCodons
 
 def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
     """
@@ -335,7 +302,7 @@ def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
                 sgRNAdf.at[ind, col] = list(range(newMinMax[0], newMinMax[1]))
 
         #Calculate cutsite coordinate using positionScore. Add this to the sgRNA catalogue.
-        sgRNAdf.loc[ind, "cut_site"] = int(conditions.at[0, "cut_site"]) - sgRNA["positionScore"]
+        sgRNAdf.loc[ind, "cut_site"] = int(conditions.at[0, "cut_site"]) + sgRNA["positionScore"]
 
         # Add CDS side to sgRNA catalogue
         sgRNAdf.loc[ind, "CDS_side"] = conditions.at[0, "CDS_side"]
@@ -381,14 +348,15 @@ def checkCDSCutandOrder(sgRNAdf):
     cutSite                                                           23.0
 
     """
-
+    import ast
     #extract CDS boundary value
     sgRNAdf.reset_index(inplace= True, drop= True)
     #Calculate sgRNA/cut site difference
     sgRNAdf["cutsite-CDSbound"] = abs(sgRNAdf["cut_site"])
+
     #C. Check cut site in CDS
     #filter for only sgRNAs that cut in CDS
-    conditionC = sgRNAdf[sgRNAdf["cut_site"].isin(sgRNAdf["CDS_boundary"])]
+    conditionC = sgRNAdf[sgRNAdf.apply(lambda row: row['cut_site'] in row['CDS_boundary'], axis=1)]
 
     #if there are sgRNAs that cut in CDS, sort by distance of cutsite and CDS start. Select the one that cuts closest.
     if len(conditionC) > 0: #cuts in CDS, closest cut (C1, C2)
@@ -430,7 +398,7 @@ def find_best_gRNA(sgRNAdf):
 
     #B. sgRNA overhang is max 15bp
     if winnerFound == False:
-        conditionB = sgRNAdf[sgRNAdf["<15_bp3’_overhang"] == True]
+        conditionB = sgRNAdf[sgRNAdf["max_15_bp_3’_overhang"] == True]
         if len(conditionB) == 1:
             conditionB = conditionB.reset_index(drop = True)
             winnersgRNA = conditionB.at[0, "sgRNA_sequence"]
@@ -493,12 +461,12 @@ def codonFragmenter(winnerdf, side, side_boundary):
     HA = winnerdf[side]
 
     if side == "HAR":
-        winnerdf[f"{side_boundary}_HA"] = np.array(winnerdf[side_boundary]) - 1 #HA is 1bp to the right of stop
-        mutable_region = HA[:winnerdf["side_boundary_HA"][-1]+1]
+        winnerdf[f"{side}_HA"] = np.array(side_boundary) - 1 #HA is 1bp to the right of stop
+        mutable_region = HA[:winnerdf[f"{side}_HA"][-1]+1]
     
     if side == "HAL":
-        winnerdf[f"{side_boundary}_HA"] = np.array(winnerdf[side_boundary]) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
-        mutable_region = HA[winnerdf["side_boundary_HA"][0]+1:]
+        winnerdf[f"{side}_HA"] = np.array(side_boundary) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
+        mutable_region = HA[winnerdf[f"{side}_HA"][0]+1:]
     
     #Start codon list
     codonList = []
@@ -582,14 +550,46 @@ def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     mutable_region = ''.join(codonsList)
 
     #replace mutated HA
-    if winnerdf[side] == "HAR":
-        winnerdf.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side_boundary}_HA"][-1]+1:]
-    if winnerdf[side] == "HAL":
-        winnerdf.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side_boundary}_HA"][0]+1] + mutable_region
-
+    if side == "HAR":
+        winnerdf.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side}_HA"][-1]+1:]
+    if side == "HAL":
+        winnerdf.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side}_HA"][0]+1] + mutable_region
     return winnerdf
 
-def mutator_Marina(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM = False):
+def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inputfiles/codon_table.xlsx"):
+
+    '''
+    Uses the amino acids table to select codons that encode for the same amino acid as the query codon. Will ensure the specified base has been mutated.
+
+    Params:
+        query_codon: string, codon to select synonymous codons for
+        base_to_change: the base within the codon that needs to change. Numeric value from 1-3.
+        codon_table_excel: string, path to an excel file that lists per codon which amino acid that codon encodes.
+    
+    Returns:
+        synonymous_codons: list of strings, each string is a codon that encodes for the same amino acid as the query codon.
+    
+    '''
+
+    import pandas as pd
+
+    codon_table = pd.read_excel(codon_table_excel)
+
+    #Extract amino acid given codon
+    amino_acid_query = codon_table[codon_table['codon'] == query_codon].iloc[0]["amino_acid"]
+
+    #Subset df for other rows corresponding to this amino acid
+    same_aa_df=codon_table[codon_table["amino_acid"] == amino_acid_query]
+
+    #Convert the codons to a list
+    codon_list = same_aa_df["codon"].values.tolist()
+
+    #Keep only codons where the indicated base has changed (this will also remove original codon)
+    changedCodons = [codon for codon in codon_list if codon[base_to_change-1] != query_codon[base_to_change-1]]
+            
+    return changedCodons
+
+def mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM = False):
 
     """
     (1) converts the position of the base that we would like to try and mutate into a codon position
@@ -601,16 +601,18 @@ def mutator_Marina(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM 
         basePosition: integer, base position within sgRNA relative to fmax
         fragmentedCDS: list, codons in direction of translation between gene region of interest and maxDistance or minDistance 
     """
+    from sgRNAutils import find_synonymous_codons
     pos_relative_to_CDS = basePosition + winnerdf["positionScore"] - winnerdf["CDS_boundary"][0] # explained in Positions section of MutationLogic.pptx
     codonNumber = codonCoordinates.at[pos_relative_to_CDS, 'codon'] #this is the codon number (as an index in mutableCodons)
     codon = fragmentedCDS[codonNumber] #This is the codon we want to mutate
     base = codonCoordinates.at[pos_relative_to_CDS, 'base'] #This is the base within that codon (1-3)
     potentialCodons = find_synonymous_codons(query_codon =codon, base_to_change= base)
+
+    if PAM == True:
+        #check for NGA and remove if present
+        potentialCodons = [codons for codons in potentialCodons if codons[-2:] != "GA"]
         
     if potentialCodons:
-        if PAM == True:
-            #check for NGA and remove if present
-            potentialCodons = [codons for codons in potentialCodons if codons[-2:] != "GA"]
         fragmentedCDS[codonNumber] = potentialCodons[0]
         
     else: 
@@ -618,7 +620,7 @@ def mutator_Marina(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM 
     
     return fragmentedCDS
 
-def find_best_mutation(winnerdf, maxDistance):
+def find_best_mutation(winnerdf):
     """
         In the case where a fragment needs to be mutated, will mutate in CDS (preferably PAM, if not then in the sgRNA). 
         If not possible, will mutate PAM outside of CDS to NTG/CTN.
@@ -652,11 +654,13 @@ def find_best_mutation(winnerdf, maxDistance):
 
         """
     import pandas as pd
+    from sgRNAutils import codonFragmenter, codonReverseFragmenter
 
     if winnerdf["Strand"] == '+':
-        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinatePlus", index_col= 0)
+        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx", sheet_name="CodonCoordinatePlus", index_col= 0)
+    
     elif winnerdf["Strand"] == '-':
-        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinateMinus", index_col= 0)
+        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx", sheet_name="CodonCoordinateMinus", index_col= 0)
 
     # Condition A: PAM in CDS
     if winnerdf["PAM_in_CDS"] == True and winnerdf["mutated?"] == False:
@@ -665,7 +669,7 @@ def find_best_mutation(winnerdf, maxDistance):
         for basePosition in winnerdf["mutable_PAM"]:
             
             try: 
-                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, PAM=True)
+                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM=True)
                 winnerdf["mutated?"] = True
                 break
 
@@ -673,19 +677,20 @@ def find_best_mutation(winnerdf, maxDistance):
 
         winnerdf = codonReverseFragmenter(fragmentedCDS, winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
 
-    # Condition B: SRS in CDS
-    if winnerdf["sgRNA_recognition_site_in_CDS"] == True and winnerdf["mutated?"] == False:
-        number_of_mutations = 0
-        position = 0
+    # Condition B: sgRNA in CDS
+    if winnerdf["SRS_in_CDS"] == True and winnerdf["mutated?"] == False:
         fragmentedCDS, winnerdf = codonFragmenter(winnerdf, winnerdf["CDS_side"], winnerdf["CDS_boundary"])
+        number_of_mutations = 0
 
-        while number_of_mutations < 2 and position in range(0, len(winnerdf["sgRNA_recognition_site_in_CDS"])):
-                
+        for basePosition in winnerdf["SRS_boundary"]:
+            
             try: 
-                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf)
+                fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates)
                 winnerdf["mutated?"] = True
-                position += 1
                 number_of_mutations += 1
+                if number_of_mutations == 2:
+                    break
+                else: ValueError("for mutating the SRS, two mutations are needed")
 
             except ValueError: continue
         
@@ -693,156 +698,18 @@ def find_best_mutation(winnerdf, maxDistance):
     
     # Condition C: PAM outside of CDS
     if winnerdf["mutated?"] == False:
-        fragmented_non_CDS_side, winnerdf = codonFragmenter(winnerdf, winnerdf["non_CDS_side"], winnerdf["non_CDS_boundary"])
-        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx", sheet_name=winnerdf["coordinates"], index_col= 0)
-        pos_relative_to_gene_region = winnerdf["mutable_PAM"][0] + winnerdf["positionScore"]
-        base = codonCoordinates.at[pos_relative_to_gene_region, 'relative_coordinate_CDS'] #This is one base of the PAM within HA 
-        newHA = winnerdf[f"{PAM_side}"][:base-1] + 'T' + winnerdf[f"{PAM_side}"][base:] #add a 'T' where the old base was in HA
-        winnerdf[f"{PAM_side}"] = newHA
+        fragmentedRegion, winnerdf = codonFragmenter(winnerdf, winnerdf["non_CDS_side"], winnerdf["non_CDS_boundary"])
+        pos_relative_to_region = winnerdf["mutable_PAM"][0] + winnerdf["positionScore"] - winnerdf["non_CDS_boundary"][0] # formula explained in MutationLogicML.pptx
+        codonNumber = codonCoordinates.at[pos_relative_to_region, 'codon'] #this is the codon number (as an index in mutableCodons)
+        codon = fragmentedRegion[codonNumber] #This is the codon we want to mutate
+        base = codonCoordinates.at[pos_relative_to_region, 'base'] #This is the base within that codon (1-3)
+        base_to_mutate_to = [i for i in ['A', 'C', 'G', 'T'] if i != codon[base-1]][0]
+        newCodon = codon[:base-1] + base_to_mutate_to + codon[base:] #add a 'T' where the old base was in this codon
+        fragmentedRegion[codonNumber] = newCodon
+        winnerdf = codonReverseFragmenter(fragmentedRegion, winnerdf, winnerdf["non_CDS_side"], winnerdf["non_CDS_boundary"])
         winnerdf["mutated?"] = True
 
     return winnerdf
-
-def mutator(winnerdf):
-    """
-    In the case where a fragment needs to be mutated, will mutate in CDS (preferably PAM, if not then in the sgRNA). 
-    If not possible, will mutate PAM outside of CDS to NTG/CTN.
-    
-    params:
-        winnerdf: the pandas series of the winning sgRNA in format:
-            fmin                                                            396165
-            fmax                                                            396187
-            #chr                                                                 X
-            strand                                                               -
-            sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
-            Gene_ID                                                    FBgn0004170
-            Transcript_ID                                              FBtr0070073
-            Chromosome                                                           X
-            Gene_Region                                                start_codon
-            Start                                                           396177
-            Stop                                                            396179
-            Strand                                                               +
-            Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
-            upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
-            downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
-            positionScore                                                        8
-            PAM_in_start/stop                                                False
-            <15_bp3’_overhang                                                 True
-            PAM_in_CDS                                                       False
-            PAM_outside_CDS                                                   True
-            CDS_boundary                                                       >22
-            lastG                                                              8.0
-            cutSite                                                           13.0
-            mutated                                                          False
-
-    """
-    import pandas as pd
-
-    #Mutated starts as false
-    mutated = False
-
-    #Codon fragmenter - codons are now in mutable format in a list, from last 21bp of HAL, the start/stop site, then the first 21bp of HAR. RevComp if gene is -
-    mutableCodons = codonFragmenter(winnerdf)
-
-    ## Coordinate information per codon of mutableCodons. This accounts for gene strand.
-    if winnerdf["Strand"] == '+':
-        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinatePlus", index_col= 0)
-    elif winnerdf["Strand"] == '-':
-        codonCoordinates = pd.read_excel("inputfiles/fmaxStopScore.xlsx", sheet_name="CodonCoordinateMinus", index_col= 0)
-
-    #Define CDS boundary range
-    if ">" in winnerdf["CDS_boundary"]:
-        CDSboundary = [int(winnerdf["CDS_boundary"][1:])+1, 43]
-    elif "<" in winnerdf["CDS_boundary"]:
-        CDSboundary = [0,int(winnerdf["CDS_boundary"][1:])]
-
-    #Extract PAM last G coordinate
-    lastG = winnerdf['lastG'] #this is a C if on minus strand
-
-    #Coordinates for sgRNA bases sgRNA1, sgRNA2, sgRNA3, sgRNA4, sgRNA5, sgRNA6
-    #Any of these coordinates that are outside of the CDS will be removed, leaving only sgRNA coordinates in CDS.
-    #We also define the second PAM base based on sgRNA +/- here - secondG (again, might be c)
-    sgRNAcoordinates = []
-    if winnerdf['strand'] == '+': #sgRNA on + strand
-        secondG = lastG-1
-        for shift in range(3, 9):
-            sgRNAcoordinates.append(lastG - shift)
-    else:
-        secondG = lastG+1
-        for shift in range(3, 9): #sgRNA on - strand
-            sgRNAcoordinates.append(lastG + shift)
-
-    sgRNAcoordinates = [x for x in sgRNAcoordinates if x in range(CDSboundary[0], CDSboundary[1])]
-
-    #A. Mutate PAM in CDS (1 mutation)
-    if winnerdf["PAM_in_CDS"] == True: #check condition
-        #mutate last G if possible using relative coordinates
-        codonNumber = codonCoordinates.at[lastG, 'codon'] #this is the codon number (as an index in mutableCodons)
-        codon = mutableCodons[codonNumber] #This is the codon we want to mutate
-        base = codonCoordinates.at[lastG, 'base'] #This is the base within that codon (1-3)
-        potentialCodons = find_synonymous_codons(query_codon =codon, base_to_change= base)
-        if len(potentialCodons) >0:
-        #check for NGA and remove this
-            for cod in potentialCodons:
-                if cod[:-1] == "A":
-                    potentialCodons.remove(cod)
-            #If we still have replacement codons left, swap the first one in:
-            if len(potentialCodons) >0:
-                mutableCodons[codonNumber] = potentialCodons[0]
-                mutated = True
-        else: #if no mutation is found, try the second G.
-            codonNumber = codonCoordinates.at[secondG, 'codon']
-            codon = mutableCodons[codonNumber]
-            base = codonCoordinates.at[secondG, 'base']
-            potentialCodons = find_synonymous_codons(query_codon = codon, base_to_change = base)
-             #If we have replacement codons, swap the first one in:
-            if len(potentialCodons) >0:
-                mutableCodons[codonNumber] = potentialCodons[0]
-                mutated = True
-    
-    #B. Mutate sgRNA in CDS (up to 2 mutations)
-    #Check if mutation was successful in A, then check if there are mutable bases of the sgRNA in CDS 
-    if mutated == False and len(sgRNAcoordinates) != 0:
-        print("Condition B")
-        sgMutatedBases = 0 #count of bases mutated
-        excludeCodons = [] #this is the codon number of codons we've already mutated. This ensures that we won't re-mutate already mutated codons.
-        index = 0 #this is the index of the sgRNA coordinate we are trying to mutate
-        while sgMutatedBases < 2 and index <= len(sgRNAcoordinates): #while 2 mutations have not yet been made and the we've not uet used all coordinates in the sgRNA coordinate list
-            print(f"mutating base {index}, mutations so far are {sgMutatedBases}")
-            coordinate = sgRNAcoordinates[index] #This is the coordinate of the sgRNA base
-            codonNumber = codonCoordinates.at[coordinate, 'codon']
-            codon = mutableCodons[codonNumber] #this is the codon number that this coordinate is in
-            base = codonCoordinates.at[coordinate, 'base'] #this is the base within that codon that the coordinate corresponds to (1-3)
-            
-            #check if we've already mutated this codon
-            if codonNumber not in excludeCodons: #if not, attempt to mutate this base
-                potentialCodons = find_synonymous_codons(query_codon = codon, base_to_change = base)
-                if len(potentialCodons) > 0: #if mutation is possible, accept this mutation
-                    mutableCodons[codonNumber] = potentialCodons[0] #replace this codon in the fragmenter list
-                    excludeCodons.append(codonNumber) #add this to already mutated codons
-                    sgMutatedBases +=1 #add 1 to count of mutated bases
-            
-            index += 1 #move to next sgRNA base
-
-        if sgMutatedBases > 0: #if we've mutated at least 1 sgRNA base, set mutated to True
-            mutated = True
-
-    #C. Mutate PAM outside CDS - to NTG or CTN
-    if mutated == False:
-        codonNumber = codonCoordinates.at[secondG, 'codon']
-        codon = mutableCodons[codonNumber]
-        base = codonCoordinates.at[secondG, 'base']
-        newCodon = codon[:base-1] + 'T' + codon[base:] #add a 'T' where the old base was in this codon
-        mutableCodons[codonNumber] = newCodon
-        mutated = True
-
-    #Replace the potentially mutated homology arms back in the upstreamHA and downstreamHA of our winnerdf
-    winnerdfmutated = codonReverseFragmenter(mutableCodons, winnerdf)
-
-    #Indicate if mutation has occurred within winner df
-    winnerdfmutated['mutated'] = mutated
-
-    return winnerdfmutated
 
 def sgRNArunner(inputfile, window = 21):
     """
