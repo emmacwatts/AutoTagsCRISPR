@@ -460,13 +460,16 @@ def codonFragmenter(winnerdf, side, side_boundary):
     #Extract HA sequence where CDS
     HA = winnerdf[side]
 
+    # create a copy of winnerdf to not trigger the "SettingWithCopyWarning"
+    winnerdf_copy = winnerdf.copy()
+
     if side == "HAR":
-        winnerdf[f"{side}_HA"] = np.array(side_boundary) - 1 #HA is 1bp to the right of stop
-        mutable_region = HA[:winnerdf[f"{side}_HA"][-1]+1]
+        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) - 1 #HA is 1bp to the right of stop
+        mutable_region = HA[:winnerdf_copy[f"{side}_HA"][-1]+1]
     
     if side == "HAL":
-        winnerdf[f"{side}_HA"] = np.array(side_boundary) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
-        mutable_region = HA[winnerdf[f"{side}_HA"][0]+1:]
+        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
+        mutable_region = HA[winnerdf_copy[f"{side}_HA"][0]+1:]
     
     #Start codon list
     codonList = []
@@ -478,7 +481,7 @@ def codonFragmenter(winnerdf, side, side_boundary):
             codonList.append(revComp(codon))
         else: codonList.append(codon)
 
-    return codonList, winnerdf
+    return codonList, winnerdf_copy
 
 def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     """
@@ -549,12 +552,15 @@ def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     #recombine the codons of the CDS
     mutable_region = ''.join(codonsList)
 
+    # make a copy of winnerdf to avoid the SettingWithCopyWarning
+    winnerdf_copy = winnerdf.copy()
+
     #replace mutated HA
     if side == "HAR":
-        winnerdf.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side}_HA"][-1]+1:]
+        winnerdf_copy.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side}_HA"][-1]+1:]
     if side == "HAL":
-        winnerdf.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side}_HA"][0]+1] + mutable_region
-    return winnerdf
+        winnerdf_copy.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side}_HA"][0]+1] + mutable_region
+    return winnerdf_copy
 
 def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inputfiles/codon_table.xlsx"):
 
@@ -654,7 +660,7 @@ def find_best_mutation(winnerdf):
 
         """
     import pandas as pd
-    from sgRNAutils import codonFragmenter, codonReverseFragmenter
+    from sgRNAutils import codonFragmenter, codonReverseFragmenter, mutator
 
     if winnerdf["Strand"] == '+':
         codonCoordinates = pd.read_excel("inputfiles/fmaxStopScoreML.xlsx", sheet_name="CodonCoordinatePlus", index_col= 0)
@@ -670,7 +676,10 @@ def find_best_mutation(winnerdf):
             
             try: 
                 fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM=True)
-                winnerdf["mutated?"] = True
+                # make a copy of winner df to avoid "SettingWithCopyWarning"
+                winnerdf_copy = winnerdf.copy()
+                winnerdf_copy["mutated?"] = True
+                winnerdf = winnerdf_copy
                 break
 
             except ValueError: continue
@@ -686,8 +695,11 @@ def find_best_mutation(winnerdf):
             
             try: 
                 fragmentedCDS = mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates)
-                winnerdf["mutated?"] = True
                 number_of_mutations += 1
+                # make a copy of winner df to avoid "SettingWithCopyWarning"
+                winnerdf_copy = winnerdf.copy()
+                winnerdf_copy["mutated?"] = True
+                winnerdf = winnerdf_copy
                 if number_of_mutations == 2:
                     break
                 else: ValueError("for mutating the SRS, two mutations are needed")
