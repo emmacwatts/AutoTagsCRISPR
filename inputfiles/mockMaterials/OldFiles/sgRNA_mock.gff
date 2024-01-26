@@ -1,0 +1,2 @@
+#chr	source	type	fmin	fmax	score	strand	phase	attributes
+Y	FlyBase	region	29027	29049	.	+	.	efficiency=5.25;frameshift=54.63;machine_learning=0.52;seed_score=12;OT_score=0;off_target_sites_low_stringency=0 (3 mismatches allowed);off_target_sites_medium_stringency=0 (4 mismatches allowed);off_target_sites_high_stringency=0 (5 mismatches allowed);target_site_variation=none observed
