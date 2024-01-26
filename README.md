@@ -15,7 +15,7 @@ as well as two verification primers outside of this region.
 ### How to set up the pipeline
 ```bash
 # clone GitHub repository and move to workspace
-git clone git@github.com/emmacwatts/AutoTagsCRISPR.git
+git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
 cd AutoTagsCRISPR
 
 # install dependencies
