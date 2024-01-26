@@ -12,6 +12,23 @@ as well as two verification primers outside of this region.
 
 ## Table of Contents
 
+### How to set up the pipeline
+```bash
+# clone GitHub repository and move to workspace
+git clone git@github.com/emmacwatts/AutoTagsCRISPR.git
+cd AutoTagsCRISPR
+
+# install dependencies
+conda env create -f environment.yml
+conda activate AutoTagsEnv
+
+# run jupyter notebook tests
+jupyter notebook blob/main/sgRNA_tests_window_21_pb.ipynb
+jupyter notebook blob/main/sgRNA_tests_window_42_pb.ipynb
+
+# run whole pipeline
+python sgRNArunner.py
+
 ### [IOguidance](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/IOguidance)
 
 Demonstrate input and output formats for your functions here with screenshots/descriptions. This will ensure our different code sections match up.
