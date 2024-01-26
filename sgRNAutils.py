@@ -732,6 +732,8 @@ def sgRNArunner(inputfile, window = 21):
         maxDistance window size right of region of interest to search for sgRNAs in, has to be divisible by 3, maximum 42
     """
     import pandas as pd
+    from datetime import datetime
+
     #set up reference sequence Bio SeqIO element
     refSeqPerChromosome = refSeq()
 
@@ -742,11 +744,12 @@ def sgRNArunner(inputfile, window = 21):
     TFsdf = make_homology_arm_fragments(TFsdf, refSeqPerChromosome)
     
     #set up the output DF - will contain a winning sgRNA per site in TFsdf
-    TFsdfWinnersandMutated = pd.DataFrame(columns=["fmin", "fmax", "strand", "sgRNA_sequence", "Gene_ID",
+    TFsdfWinnersandMutated = pd.DataFrame(columns=["fmin", "fmax", "#chr", "strand", "sgRNA_sequence", "Gene_ID",
                                                    "Transcript_ID", "Chromosome", "Gene_Region", "Start", "Stop",
-                                                   "Strand", "Reference_Seq", "upstreamHA", "downstreamHA", "positionScore",
-                                                    "PAM_in_start/stop", "<15_bp3’_overhang", "PAM_in_CDS", "PAM_outside_CDS",
-                                                    "CDS_boundary", "lastG", "cutSite", "mutated"])
+                                                   "Strand", "Reference_Seq", "HAL", "HAR", "positionScore", "CDS_side", 
+                                                   "non_CDS_side", "PAM_in_start/stop", "max_15_bp_3’_overhang", "PAM_in_CDS", 
+                                                   "PAM_outside_CDS", "SRS_in_CDS", "CDS_boundary", "non_CDS_boundary", 
+                                                   "SRS_boundary", "mutable_PAM", "cut_site", "mutated?"])
     
     #Per row of transcription factor start/stop site dataframe, select a guideRNA
     for ind, row in TFsdf.iterrows():
@@ -761,10 +764,10 @@ def sgRNArunner(inputfile, window = 21):
         sgRNAdf = sgRNApositionCheck(filtered_sgRNA, minDistance, maxDistance)
 
         #Add a column to establish whether mutation has occurred. This will be set to 'True' in the mutator function and starts as False by default.
-        sgRNAdf['mutated'] = False
+        sgRNAdf["mutated?"] = False
 
         #If no sgRNAs were found at any stringency
-        if not sgRNAdf:
+        if sgRNAdf.empty:
             print(f"No sgRNAs found at all stringencies for {ind}.")
 
             #Just input the information about this site into the final DF. The columns about the guideRNA will be filled with 'NaN', indicating no guideRNA could be found.
@@ -779,12 +782,18 @@ def sgRNArunner(inputfile, window = 21):
             winnerdf.reset_index(inplace= True, drop= True)
             winnerdf = winnerdf.loc[0] #This is the pandas series for the same information
             if mutationNeeded == True: #run mutator if indicated
-                winnerdf = find_best_mutation(winnerdf, maxDistance) #this will mutate HAL or HAR as needed and return the original DF with mutated sequences, and the mutated column set to True
+                winnerdf = find_best_mutation(winnerdf) #this will mutate HAL or HAR as needed and return the original DF with mutated sequences, and the mutated column set to True
         
             #Add the winning sgRNA into the output df for this TF start/stop site
             TFsdfWinnersandMutated.loc[ind] = winnerdf
     
-        #Return dataframe as an excel file (This should be unindented one, but while testing I'd like to see the output file updated after each row of the TFsdf)
-        TFsdfWinnersandMutated.to_excel("outputFiles/winningsgRNAs.xlsx")
+    # Get the current date
+    current_date = datetime.now()
+
+    # Format the date as "year month day" to name the outputfile
+    formatted_date = current_date.strftime("%Y %m %d")
+
+    #Return dataframe as an excel file (This should be unindented one, but while testing I'd like to see the output file updated after each row of the TFsdf)
+    TFsdfWinnersandMutated.to_excel(f"outputFiles/winning_sgRNAs_window_{window}_bp_{formatted_date}.xlsx")
 
     return TFsdfWinnersandMutated
