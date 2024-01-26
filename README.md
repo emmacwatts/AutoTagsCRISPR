@@ -15,19 +15,35 @@ as well as two verification primers outside of this region.
 ### How to set up the pipeline
 ```bash
 # clone GitHub repository and move to workspace
-git clone git@github.com/emmacwatts/AutoTagsCRISPR.git
+git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
 cd AutoTagsCRISPR
 
 # install dependencies
 conda env create -f environment.yml
 conda activate AutoTagsEnv
+```
 
+Now you need to save the following files in the folder /AutoTagsCRISPR/inputfiles:
+- dmel-all-r6.48.gtf
+- dmel-all-chromosome-r6.48.fasta
+- NoOffTarget_high_stringency.gff
+- NoOffTarget_med_stringency.gff
+- NoOffTarget_low_stringency.gff
+- 1to3NonCdsOffTarget_low_stringency.gff
+- ManyOffTarget_low_stringency.gff
+  
+```bash
 # run jupyter notebook tests
 jupyter notebook blob/main/sgRNA_tests_window_21_pb.ipynb
 jupyter notebook blob/main/sgRNA_tests_window_42_pb.ipynb
 
+# run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
+python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+python sgRNArunner.py -window=42 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+
 # run whole pipeline
-python sgRNArunner.py
+python sgRNArunner.py -window=21 -inputfile="inputfiles/TFs.xlsx"
+python sgRNArunner.py -window=42 -inputfile="inputfiles/TFs.xlsx"
 ```
 ### [IOguidance](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/IOguidance)
 
