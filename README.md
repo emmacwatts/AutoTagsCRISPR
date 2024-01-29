@@ -14,7 +14,7 @@ as well as two verification primers outside of this region.
 
 ## Table of Contents
 
-### How to set up the pipeline
+### How to set up the pipeline and run the pipeline for our example use case
 ```bash
 # clone GitHub repository and move to workspace
 git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
