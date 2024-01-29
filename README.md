@@ -1,6 +1,8 @@
-# AutoTagsCRISPR
+# Introducing AutoTagsCRISPR
 
-Building a pipeline for automated CRISPR construct design in Drosophila Melanogaster. :fly:
+AutoTagsCRISPR is a pipeline for automated CRISPR construct design to tag genes at all annotated termini (i.e., at every start and stop codon).
+
+Here, we will demonstrate the usability and logic of AutoTagsCRISPR using a Drosophila Melanogaster project as an example. :fly:
 
 Data is organised from input files with gene IDs, reference genome sequences and annotations, and all potential guideRNA sequences.
 The best guide RNA is chosen for the given parameters, and primers are designed for the left and right homology arms of this region
@@ -26,6 +28,8 @@ conda activate AutoTagsEnv
 Now you need to save the following files in the folder /AutoTagsCRISPR/inputfiles:
 - dmel-all-r6.48.gtf
 - dmel-all-chromosome-r6.48.fasta
+
+And the following files in the folder /AutoTagsCRISPR/inputfiles/sgRNAFiles:
 - NoOffTarget_high_stringency.gff
 - NoOffTarget_med_stringency.gff
 - NoOffTarget_low_stringency.gff
@@ -34,8 +38,8 @@ Now you need to save the following files in the folder /AutoTagsCRISPR/inputfile
   
 ```bash
 # run jupyter notebook tests
-jupyter notebook blob/main/sgRNA_tests_window_21_pb.ipynb
-jupyter notebook blob/main/sgRNA_tests_window_42_pb.ipynb
+jupyter notebook sgRNA_tests_window_21_pb.ipynb
+jupyter notebook sgRNA_tests_window_42_pb.ipynb
 
 # run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
 python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
