@@ -12,49 +12,55 @@ To understand the function of a transcription factor (TF), it is necessary to st
 
 1. Set up a local version of this GitHub repository
 
-```bash
-# clone GitHub repository and move to workspace
-git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
-cd AutoTagsCRISPR
+   ```bash
+   # clone GitHub repository and move to workspace
+   git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
+   cd AutoTagsCRISPR
 
-# install dependencies
-conda env create -f environment.yml
-conda activate AutoTagsEnv
-```
+   # install dependencies
+   conda env create -f environment.yml
+   conda activate AutoTagsEnv
+   ```
 
 2. Go to our [OneDrive](https://drive.google.com/drive/u/2/folders/1hz4S1LOAa9uyT4TMrH9Jgsuwvcgm_0Tz)
    
 4. Download and save the following files in [inputfiles](inputfiles):
-  - dmel-all-r6.48.gtf
-  - dmel-all-chromosome-r6.48.fasta
+   - dmel-all-r6.48.gtf
+   - dmel-all-chromosome-r6.48.fasta
+
+5. Create a new folder in [inputfiles](inputfiles) called sgRNAFiles:
+
+   ```bash
+   mkdir inputfiles/sgRNAFiles
+   ```
     
-5. Download and save the following files in [inputfiles/sgRNAFiles](inputfiles/sgRNAFiles):
-- NoOffTarget_high_stringency.gff
-- NoOffTarget_med_stringency.gff
-- NoOffTarget_low_stringency.gff
-- 1to3NonCdsOffTarget_low_stringency.gff
-- ManyOffTarget_low_stringency.gff
+5. Download and save the following files in the freshly created inputfiles/sgRNAFiles folder:
+   - NoOffTarget_high_stringency.gff
+   - NoOffTarget_med_stringency.gff
+   - NoOffTarget_low_stringency.gff
+   - 1to3NonCdsOffTarget_low_stringency.gff
+   - ManyOffTarget_low_stringency.gff
 
 6. Test for successful implementation
    
-```bash
-# run jupyter notebook tests
-jupyter notebook sgRNA_tests_window_21_pb.ipynb
-jupyter notebook sgRNA_tests_window_42_pb.ipynb
-
-# run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
-python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
-python sgRNArunner.py -window=42 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
-```
+   ```bash
+   # run jupyter notebook tests
+   jupyter notebook sgRNA_tests_window_21_pb.ipynb
+   jupyter notebook sgRNA_tests_window_42_pb.ipynb
+   
+   # run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
+   python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+   python sgRNArunner.py -window=42 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+   ```
 
 7. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
-   - **_⚠️ Warning:_** This might take 5 days to run
+   **_⚠️ Warning:_** This might take 5 days to run
      
-```bash
-# run whole pipeline
-python sgRNArunner.py -window=21 -inputfile="inputfiles/TFs.xlsx"
-python sgRNArunner.py -window=42 -inputfile="inputfiles/TFs.xlsx"
-```
+   ```bash
+   # run whole pipeline
+   python sgRNArunner.py -window=21 -inputfile="inputfiles/TFs.xlsx"
+   python sgRNArunner.py -window=42 -inputfile="inputfiles/TFs.xlsx"
+   ```
 
 ### [IOguidance](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/IOguidance)
 
