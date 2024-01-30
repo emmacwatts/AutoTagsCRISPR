@@ -48,9 +48,9 @@ To understand the function of a transcription factor (TF), it is necessary to st
    jupyter notebook sgRNA_tests_window_21_pb.ipynb
    jupyter notebook sgRNA_tests_window_42_pb.ipynb
    
-   # run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
-   python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
-   python sgRNArunner.py -window=42 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+   # run tests with shorter mock files for a window left and right of the annotated termini of 21 bp and 42 bp
+   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21
+   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42
    ```
 
 7. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
@@ -58,8 +58,10 @@ To understand the function of a transcription factor (TF), it is necessary to st
      
    ```bash
    # run whole pipeline
-   python sgRNArunner.py -window=21 -inputfile="inputfiles/TFs.xlsx"
-   python sgRNArunner.py -window=42 -inputfile="inputfiles/TFs.xlsx"
+   # of note, you can specify the window (number of bp) left and right of the annotated termini in which you would like to design the sgRNA
+   # the number of bp has to be divisible by 3 and can be maximum 42
+   python sgRNArunner.py "inputfiles/mockMaterials/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21
+   python sgRNArunner.py "inputfiles/mockMaterials/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42
    ```
 
 ### [IOguidance](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/IOguidance)
