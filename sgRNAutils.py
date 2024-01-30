@@ -155,24 +155,15 @@ def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
 
     """
     import pandas as pd
-    
-    print(gRNA_file)
 
     # create a dataframe from the gRNA file
     gRNAFileAnnotation = pd.read_csv(gRNA_file, sep = "\t", index_col = False)
-    
-    print(gRNAFileAnnotation.head())
-
-    # add a new category to the dataframe that provides information about whether the sequence deviates from the transgenic strain 
-    #gRNAFileAnnotation['target_site_variation'] = ""
 
     # reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
     # for each attribute value, extract the gene ID and symbol and add this to the new categories
     for index, attribute in enumerate(gRNAFileAnnotation['attributes']):
         fullatt = (attribute).split(";")
         gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
-    
-    print(gRNAFileAnnotation.head())
     
     # shorten file to essential information
     GenomeCoordinates = gRNAFileAnnotation[["target_site_variation", "fmin", "fmax", "#chr", "strand"]]
@@ -782,7 +773,7 @@ def sgRNArunner(inputfile, fastaFile, annotationFile, sgRNAFolder, window):
         else: #If we have at least one sgRNA
             #Select winner
             winnersgRNA, mutationNeeded = find_best_gRNA(sgRNAdf) #winnersgRNA is a string of the winning sequence, mutationNeeded is a bool variable
-            print(winnersgRNA)
+            print("best sgRNA:", winnersgRNA)
             winnerdf = sgRNAdf[sgRNAdf["sgRNA_sequence"] == winnersgRNA] #This is the dataframe row for the winning sgRNA from the original sgRNA dataframe
             winnerdf.reset_index(inplace= True, drop= True)
             winnerdf = winnerdf.loc[0] #This is the pandas series for the same information
