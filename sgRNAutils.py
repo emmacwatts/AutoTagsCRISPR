@@ -15,7 +15,7 @@ def revComp(inputSeq):
 
   return revComp
 
-def refSeq():
+def refSeq(fastaFile):
     """
     Creates a Bio SeqIO element from the Drosophila melanogaster reference genome.
 
@@ -24,12 +24,12 @@ def refSeq():
     from Bio import SeqIO
 
     refSeqPerChromosome = {}
-    for seq in SeqIO.parse(open("inputfiles/dmel-all-chromosome-r6.48.fasta"), 'fasta'): #This is the FASTA file of the reference genome sequence
+    for seq in SeqIO.parse(open(fastaFile), 'fasta'): #This is the FASTA file of the reference genome sequence
         refSeqPerChromosome[seq.id] = seq.seq 
 
     return refSeqPerChromosome
 
-def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation = "inputfiles/dmel-all-r6.48.gtf"):
+def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
     '''
     Creating a dataframe from sequence information and genes of interest. Depends on functions revComp(). 
 
@@ -155,18 +155,24 @@ def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
 
     """
     import pandas as pd
+    
+    print(gRNA_file)
 
     # create a dataframe from the gRNA file
     gRNAFileAnnotation = pd.read_csv(gRNA_file, sep = "\t", index_col = False)
+    
+    print(gRNAFileAnnotation.head())
 
     # add a new category to the dataframe that provides information about whether the sequence deviates from the transgenic strain 
-    gRNAFileAnnotation = gRNAFileAnnotation.assign(target_site_variation= "")
+    #gRNAFileAnnotation['target_site_variation'] = ""
 
     # reformat the "Attribute" category in refGenomeAnnotation, to extract Gene_ID, Gene_Symbol, and Transcript ID
     # for each attribute value, extract the gene ID and symbol and add this to the new categories
     for index, attribute in enumerate(gRNAFileAnnotation['attributes']):
         fullatt = (attribute).split(";")
         gRNAFileAnnotation.at[index,"target_site_variation"] = fullatt[8]
+    
+    print(gRNAFileAnnotation.head())
     
     # shorten file to essential information
     GenomeCoordinates = gRNAFileAnnotation[["target_site_variation", "fmin", "fmax", "#chr", "strand"]]
@@ -197,7 +203,7 @@ def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
 
     return filtered_gRNAs
 
-def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome):
+def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome, sgRNAFolder):
     """
     Iterates trough gRNA stringency files until at least one gRNA is returned from filter_gRNAs function.
     Function depends on filter_gRNA() functioon.
@@ -211,10 +217,9 @@ def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome):
         filtered_gRNAs: a df of gRNAs that meet the conditions at this site
     """
     import pandas as pd
-
-    gRNAfiles = ["inputfiles/NoOffTarget_high_stringency.gff", "inputfiles/NoOffTarget_med_stringency.gff", 
-    "inputfiles/NoOffTarget_low_stringency.gff", "inputfiles/1to3NonCdsOffTarget_low_stringency.gff", 
-    "inputfiles/ManyOffTarget_low_stringency.gff"]
+    import os
+    
+    gRNAfiles = [os.path.join(sgRNAFolder, f) for f in os.listdir(sgRNAFolder)]
 
     #Set up sgRNA variable
     sgRNA = pd.DataFrame()
@@ -723,7 +728,7 @@ def find_best_mutation(winnerdf):
 
     return winnerdf
 
-def sgRNArunner(inputfile, window = 21):
+def sgRNArunner(inputfile, fastaFile, annotationFile, sgRNAFolder, window):
     """
     Check functions so far work with the proposed changes.
     params:
@@ -735,10 +740,10 @@ def sgRNArunner(inputfile, window = 21):
     from datetime import datetime
 
     #set up reference sequence Bio SeqIO element
-    refSeqPerChromosome = refSeq()
+    refSeqPerChromosome = refSeq(fastaFile)
 
     #Make the dataframe for all transcription factor start/stop sites
-    TFsdf = make_dataframe_from_TFs_list(inputfile, refSeqPerChromosome)
+    TFsdf = make_dataframe_from_TFs_list(inputfile, refSeqPerChromosome, annotationFile)
 
     #Create fragments for the HDR-arm and append as new column to dataframe
     TFsdf = make_homology_arm_fragments(TFsdf, refSeqPerChromosome)
@@ -755,7 +760,7 @@ def sgRNArunner(inputfile, window = 21):
     for ind, row in TFsdf.iterrows():
         print(f"Selecting guide RNA for TFsdf row {ind}")
 
-        filtered_sgRNA = gRNA_stringencyIterator(row, window, refSeqPerChromosome)
+        filtered_sgRNA = gRNA_stringencyIterator(row, window, refSeqPerChromosome, sgRNAFolder)
 
         #Derive min and max distance from stop position
         minDistance = (window + 3) * -1 # leave a 3bp gap to account for start/stop site
