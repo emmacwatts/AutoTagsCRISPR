@@ -8,10 +8,10 @@ To understand the function of a transcription factor (TF), it is necessary to st
 ![image](https://user-images.githubusercontent.com/120821707/210607784-b8ccab0c-a99f-46fc-afdc-5f6f702fe3a1.png)
 
 ---
+# How to set up the pipeline and run the pipeline for our example use case
 
-## Table of Contents
+1. Set up a local version of this GitHub repository
 
-### How to set up the pipeline and run the pipeline for our example use case
 ```bash
 # clone GitHub repository and move to workspace
 git clone https://github.com/emmacwatts/AutoTagsCRISPR.git
@@ -21,18 +21,22 @@ cd AutoTagsCRISPR
 conda env create -f environment.yml
 conda activate AutoTagsEnv
 ```
-Go to our GoogleDrive repositiory and 
-Now you need to save the following files in the folder /AutoTagsCRISPR/inputfiles:
-- dmel-all-r6.48.gtf
-- dmel-all-chromosome-r6.48.fasta
 
-And the following files in the folder /AutoTagsCRISPR/inputfiles/sgRNAFiles:
+2. Go to our [OneDrive](https://drive.google.com/drive/u/2/folders/1hz4S1LOAa9uyT4TMrH9Jgsuwvcgm_0Tz)
+   
+4. Download and save the following files in [inputfiles](inputfiles):
+  - dmel-all-r6.48.gtf
+  - dmel-all-chromosome-r6.48.fasta
+    
+5. Download and save the following files in [inputfiles/sgRNAFiles](inputfiles/sgRNAFiles):
 - NoOffTarget_high_stringency.gff
 - NoOffTarget_med_stringency.gff
 - NoOffTarget_low_stringency.gff
 - 1to3NonCdsOffTarget_low_stringency.gff
 - ManyOffTarget_low_stringency.gff
-  
+
+6. Test for successful implementation
+   
 ```bash
 # run jupyter notebook tests
 jupyter notebook sgRNA_tests_window_21_pb.ipynb
@@ -41,11 +45,17 @@ jupyter notebook sgRNA_tests_window_42_pb.ipynb
 # run tests with shorter mock files for a window around start/stop codon of 21 bp and 42 bp
 python sgRNArunner.py -window=21 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
 python sgRNArunner.py -window=42 -inputfile="inputfiles/mockMaterials/TFsTruncatedLong.xlsx"
+```
 
+7. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
+   - **_⚠️ Warning:_** This might take 5 days to run
+     
+```bash
 # run whole pipeline
 python sgRNArunner.py -window=21 -inputfile="inputfiles/TFs.xlsx"
 python sgRNArunner.py -window=42 -inputfile="inputfiles/TFs.xlsx"
 ```
+
 ### [IOguidance](https://github.com/emmacwatts/AutoTagsCRISPR/tree/main/IOguidance)
 
 Demonstrate input and output formats for your functions here with screenshots/descriptions. This will ensure our different code sections match up.
