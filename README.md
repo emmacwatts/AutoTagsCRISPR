@@ -25,6 +25,7 @@ Files that are NOT necessary to run the pipeline but are relicts of the developm
 
 ## [PipelineLogic.pptx](./PipelineLogic.pptx)
 Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before building on this pipeline it would be advisable to carefully read this document. Read the document in Slide Show mode as there are animations that will help you understand what is going on.
+
 ---
 # How to set up the pipeline and run the pipeline for our example use case
 
