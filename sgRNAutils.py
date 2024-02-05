@@ -1,3 +1,8 @@
+"""
+Author: Marina Luchner, Emma Watts, Giulia Biasi
+Email: marina.luchner@eng.ox.ac.uk, emma.watts@stx.ox.ac.uk, giulia.biasi@linacre.ox.ac.uk
+"""
+
 #Complete functions
 def revComp(inputSeq):
   """
