@@ -5,8 +5,26 @@ AutoTagsCRISPR is a pipeline for automated CRISPR construct design to tag genes 
 Here, we will demonstrate the usability and logic of AutoTagsCRISPR using a Drosophila Melanogaster project as an example. :fly:
 To understand the function of a transcription factor (TF), it is necessary to study its tissue distribution, binding characteristics at physiological concentration and chromatin accessibility state, effect on transcription, and protein interactions. To investigate these properties, S. Kittelmann et al.,  propose to generate a biological resource to enable the in-depth study of TF function in Drosophila. This resource will consist of three parts: a set of plasmids for tagging all Drosophila TFs with an exchangeable epitope, fly lines in which TFs havebeen tagged, and a database with expression and binding information for a subset of previously unstudied TFs. S. Kittelmann et al., will insert a superfolder-GFP (sfGFP) to 1) tag specifically TFs; 2) tag at the endogenous genomic location, capturing all regulatory information; 3) tag all isoforms with different N and C-termini; 4) allow easy tag exchange; 5) support easy removal of transgenic markers, allowing virtually scarless gene editing. There are on average 2.56 termini annotated per TF gene, amounting to 1,915 CRISPR constructs in total for the 753 TF genes in the Drosophila genome. AutoTagsCRISPR will allow for an automated CRISPR construct design to speed up the design process and minimise costs.
 
+For further information read [PipelineLogic.pptx](./PipelineLogic.pptx) in Slide Show mode.
+
 ![image](https://user-images.githubusercontent.com/120821707/210607784-b8ccab0c-a99f-46fc-afdc-5f6f702fe3a1.png)
 
+---
+# Introducing the folder structure
+## [inputfiles](./inputfiles)
+Contains genome sequence files, genome annotation files, codon table files and files describing the realtive position of sgRNA and the start/stop codon.
+
+## [outputFiles](./outputFiles)
+Location where the pipeline output is saved. Output consists of excel sheet listening information about the TF transcripts and their respective sgRNA and HA.
+
+## [oldFiles](./oldFiles)
+Files that are NOT necessary to run the pipeline but are relicts of the development process. Should be deleted if possible.
+
+## [primerScripts](./primerScripts)
+Files that are NOT necessary to run the pipeline but are relicts of the development process to design primers. These scripts are relevant for the case that HAs cannot be synthesized and have to be cloned from the Drosophila genome. The scripts allow to design suitable primers to 1) clone the Homology arms and 2) verify the successful tagging of the start/stop codon.
+
+## [PipelineLogic.pptx](./PipelineLogic.pptx)
+Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before building on this pipeline it would be advisable to carefully read this document. Read the document in Slide Show mode as there are animations that will help you understand what is going on.
 ---
 # How to set up the pipeline and run the pipeline for our example use case
 
