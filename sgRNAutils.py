@@ -1,10 +1,12 @@
 #Complete functions
 def revComp(inputSeq):
   """
-  This function takes an input sequence and returns the reverse complement.
+  Creates the reverse complement of a DNA sequence.
 
-  Input: inputSeq in str format
-  Output: revComp in str format
+  Input: 
+        inputSeq: DNA sequence, str
+  Output: 
+        revComp: reverse complement of inputSeq, str
 
   """
   complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
@@ -17,9 +19,17 @@ def revComp(inputSeq):
 
 def refSeq(fastaFile):
     """
-    Creates a Bio SeqIO element from the Drosophila melanogaster reference genome.
+    Creates a dictonary listing the sequence of every chromosome.
+    
+    Input: 
+        fastaFile: the file path to the reference genome in fasta format, str
 
-    returns: refSeqPerChromosome - a dictionary of seq ID: sequence (in SeqIO fasta format) for the full reference genome.
+    Output:
+        refSeqPerChromosome: list of chromosomes with DNA sequence, dictionary of format:
+        {   '2L': Seq('CGACAATGCACGACAGAGGAAGCAGAACAGATATTTAGATTGCCTCTCATTTTC...GAG'), 
+            '2R': Seq('CTCAAGATACCTTCTACAGATTATTTAAAGCTAGTGCACAACAACAATAAATTG...TTC'), 
+            ...
+        }
     """
     from Bio import SeqIO
 
@@ -31,22 +41,17 @@ def refSeq(fastaFile):
 
 def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
     '''
-    Creating a dataframe from sequence information and genes of interest. Depends on functions revComp(). 
+    Creating a dataframe from sequence information and genes of interest. 
 
     params:
-        TF_list: xlsx file listing the genes of interest
+        TF_list: excel file listing the genes of interest
         refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
         annotation: gtf file containing the gene annotation information for the reference genome
 
-    returns: dataframe of information about each start/stop site, in format:
-        'Gene_ID': 'FBgn0004652',
-        'Transcript_ID': 'FBtr0083651', 
-        'Chromosome': '3R', 
-        'Gene_Region': 'stop_codon', 
-        'Start': 18426145, 
-        'Stop': 18426147, 
-        'Strand': '-', 
-        'Reference_Seq': 'TTGATCGTAGGACAC...', 
+    returns: pandas dataframe of information about each annotated termini (start/ stop sites) of genes of interest, in format:
+        Gene_ID         Transcript_ID   Chromosome  Gene_Region     Start      Stop     Strand                                      Reference_Seq 
+        FBgn0000022     FBtr0070072          X      start_codon     370094     370096   +           CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG... 
+        FBgn0000022     FBtr0070072          X      stop_codon      370697     370699   +           GACATTGTGTCGTTCGTATGTCGCCCATTGAGACCGCCAATGGAGG... 
     '''
 
     import pandas as pd
@@ -107,12 +112,26 @@ def make_dataframe_from_TFs_list(TF_list, refSeqPerChromosome, annotation):
 def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
     """
     Takes in the dataframe of information about start/stop codon regions, 
-    and appends with columns for the 225 bp upstream and downstream of
-    this site (the homlogy arm fragments).
+    and appends homology arm sequences. Homology arms are defined as 225 bp left and right from the start/stop site on the (+) strand.
 
-    input: TFsDF - as defined in previous function and on GitHub README, with Reference_Seq 1600bp either side of the start/stop.
+    input: TFsdf: pandas dataframe of information about start/stop codon.
            refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
-    output: TFsDF appended with HAL and HAR
+    output: TFsdf pandas dataframe appended with HAL and HAR of the format:
+        Gene_ID Transcript_ID Chromosome  Gene_Region   Start    Stop Strand  \
+        0  FBgn0000022   FBtr0070072          X  start_codon  370094  370096      +   
+        1  FBgn0000022   FBtr0070072          X   stop_codon  370697  370699      +   
+
+                                            Reference_Seq  \
+        0  CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...   
+        1  GACATTGTGTCGTTCGTATGTCGCCCATTGAGACCGCCAATGGAGG...   
+
+                                                        HAL  \
+        0  TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...   
+        1  CACCAAGAGTTGCAGTTGCAATCTCCAACTGGCAGCACAAGTTCCT...   
+
+                                                        HAR  
+        0  GCTTTGGGCAGCGAAAATCACTCTGTTTTCAACGACGACGAGGAGT...  
+        1  AAAAACAGATCAAATCTTCAGCTATTGCTAGTCGCACCCAACCATA...  
 
     """
     for index, row in TFsdf.iterrows():
@@ -133,26 +152,20 @@ def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
 
 def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
     """
-    Selects gRNAs within window of the start/stop site and returns these in a dataframe with information about their coordinates and the start/stop site.
+    Selects sgRNAs within given window around the start/stop site and returns these in a pandas dataframe with information about their coordinates and the start/stop site.
+    
     params:
         gRNA_file: gff file
-        tfSingleRow: a pandas series for one row of the original tfsDF with the following format
-            Gene_ID                                                    FBgn0000022
-            Transcript_ID                                              FBtr0070072
-            Chromosome                                                           X
-            Gene_Region                                                start_codon
-            Start                                                           370094
-            Stop                                                            370096
-            Strand                                                               +
-            Reference_Seq        CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...
-            upstreamHA           TTTGCTCAGTTTTTTATTGGCGCCGGGACCAATTCCCCGGCGACCA...
-            downstreamHA         TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
+        window: number of bp left and right from the start/stop site to search for gRNAs in
+        tfSingleRow: a pandas Series for one row of the TFsdf dataframe produced by make_dataframe_from_TFs_list() function
+        refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
         
-    returns: filtered_gRNAs - a dataframe of sgRNAs for one start/stop site of the format:
-            fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	...	downstreamHA
-        0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
-        1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
-
+    returns: filtered_gRNAs: pandas dataframe of sgRNAs for one start/stop site of the format:
+       	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	\
+        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	\
+        
+        Strand	Reference_Seq	                                    HAL	                                                HAR
+        +	    CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...	TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...	GCTTTGGGCAGCGAAAATCACTCTGTTTTCAACGACGACGAGGAGT...
     """
     import pandas as pd
 
@@ -196,16 +209,22 @@ def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
 
 def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome, sgRNAFolder):
     """
-    Iterates trough gRNA stringency files until at least one gRNA is returned from filter_gRNAs function.
-    Function depends on filter_gRNA() functioon.
+    Iterates trough gRNA stringency files until at least one gRNA is returned from filter_gRNAs() function.
+    Function depends on filter_gRNA() function.
 
     params:
-        tfSingleRow: a pandas Series for one row of the tfsDF dataframe produced by make_dataframe_from_TFs_list
+        tfSingleRow: a pandas Series for one row of the TFsdf panas dataframe produced by make_dataframe_from_TFs_list
         refSeqPerChromosome: a Bio SeqIO dictionary for the D. melanogaster genome
-        window: the window size to search for gRNAs around the start/stop site
+        window: number of bp left and right of the start/stop codon to search for gRNAs in
+        sgRNAFolder: folder containing gRNA files for different stringencies
 
     returns:
-        filtered_gRNAs: a df of gRNAs that meet the conditions at this site
+        sgRNA: pandas dataframe of gRNAs of a particular stringecy for a given start/stop codon in the format:
+        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	\
+        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	\
+        
+        Strand	Reference_Seq	                                    HAL	                                                HAR
+        +	    CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...	TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...	GCTTTGGGCAGCGAAAATCACTCTGTTTTCAACGACGACGAGGAGT...
     """
     import pandas as pd
     import os
@@ -226,21 +245,30 @@ def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome, sgRNAFolde
 
 def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
     """
-    Given filtered sgRNAs for a start/stop site in the 'filtered_gRNAs' format, will create dataframe containing positional information and condition checks
+    Given filtered sgRNAs for a start/stop site, creates pandas dataframe containing positional information and condition checks
     for each sgRNA.
-    minDistance and maxDistance must be divisible by 3.
 
-    params: minDistance, maxDistance: minimum and maximum distances from the start/stop site that the sgRNA can be in
-            df: a pandas df of sgRNAs for one start/stop site:
-            fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	... downstreamHA
-        0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
-        1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...
+    params: 
+        minDistance, maxDistance: minimum and maximum distances from the start/stop site that the sgRNA can be in, must be divisible by 3
+        sgRNAdf: a pandas dataframe of sgRNAs for one start/stop site
         
-    output: the same dataframe with added columns:
-            fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	...	downstreamHA	                                    positionScore	PAM_in_start/stop	<15_bp3’_overhang	PAM_in_CDS	PAM_outside_CDS	CDS_boundary	lastG	cutSite	
-        0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	8	            False	            True	            True	    False	        >22	            31.0	26.0	
-        1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	16	            False	            False	            True	    False	        <20	            16.0	21.0	
-                    
+    output: 
+        sgRNAdf: pandas dataframe of sgRNAs for one start/stop site, appended with positional information and condition checks in format:
+        	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand \   
+            9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
+            9792986	9793008	2L	    +	    GCACAGTTTACGCAGGTCCATGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
+           
+            Reference_Seq	                                    HAL	                                                HAR	\                                                                                                
+            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\	
+            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\
+            
+            positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS\
+            3	            HAL	        HAR	            False	            True	                False	    True	        True	\  
+            2	            HAL	        HAR	            True	            False	                False	    False	        True	\   
+    
+            CDS_boundary	                                    non_CDS_boundary	                                SRS_boundary	            mutable_PAM	    cut_site         
+            [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
+            [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -3
     """
     import pandas as pd
     import sys
@@ -313,36 +341,10 @@ def checkCDSCutandOrder(sgRNAdf):
     Given an sgRNAdf, will calculate firstly rows where the sgRNA cuts inside CDS. If multiple, selects that which cuts closest to start/stop.
     If none, selects closest cut sgRNA that is outside CDS.
     
-    params: sgRNAdf in format:
-            fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	...	downstreamHA	                                    positionScore	PAM_in_start/stop	<15_bp3’_overhang	PAM_in_CDS	PAM_outside_CDS	CDS_boundary	lastG	cutSite mutated	
-        0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	8	            False	            True	            True	    False	        >22	            31.0	26.0	False
-        1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	16	            False	            False	            True	    False	        <20	            16.0	21.0	False
-     
-    output: pandas series of the winning sgRNA in format:
-    fmin                                                            409794
-    fmax                                                            409816
-    #chr                                                                 X
-    strand                                                               -
-    sgRNA_sequence                                 CCATGACGAGCATTTGCAGCAGC
-    Gene_ID                                                    FBgn0002561
-    Transcript_ID                                              FBtr0070074
-    Chromosome                                                           X
-    Gene_Region                                                start_codon
-    Start                                                           409796
-    Stop                                                            409798
-    Strand                                                               +
-    Reference_Seq        CGACGTCGTCCAGCTTGATGAAAAACTTTGTGGCGGTGTGCGCCAG...
-    upstreamHA           CATGTTATTGTAGTTGAACTTCTTCTTCTGGGAGGACAACATGGGT...
-    downstreamHA         GTAATCCTTGCGAGAGTTTTCTAAGATTTAGTTTACAGATGTTGAC...
-    positionScore                                                       18
-    PAM_in_start/stop                                                 True
-    <15_bp3’_overhang                                                 True
-    PAM_in_CDS                                                       False
-    PAM_outside_CDS                                                  False
-    CDS_boundary                                                       >22
-    lastG                                                             18.0
-    cutSite                                                           23.0
-
+    params:
+        sgRNAdf: pandas dataframe of sgRNAs for one start/stop site as produced by sgRNApositionCheck() function
+       
+    output: sgRNA sequence, str
     """
     import ast
     #extract CDS boundary value
@@ -367,18 +369,14 @@ def checkCDSCutandOrder(sgRNAdf):
 
 def find_best_gRNA(sgRNAdf):
     """
-    Select the best guide RNA from a dataframe of guideRNAs that are ±20bp from the start/stop site.
+    Selects the best sgRNA from a dataframe of sgRNAs based on condition A-C (see PipelineLogic.pptx).
 
     params:
-        df: the dataframe of potential guideRNAs in format:
-            fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	...	downstreamHA	                                    positionScore	PAM_in_start/stop	<15_bp3’_overhang	PAM_in_CDS	PAM_outside_CDS	CDS_boundary	lastG	cutSite	mutated
-        0	370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	8	            False	            True	            True	    False	        >22	            31.0	26.0	False
-        1	370693	370715	X	    -	    CCTGTAAAAAAACAGATCAAATC	FBgn0000022	FBtr0070072	    X	        start_codon	370694	...	TTAAGAGATAGTATAACGTTATTGTGTGACGATGCTCCTTGCTTCA...	16	            False	            False	            True	    False	        <20	            16.0	21.0	False
-   
+        sgRNAdf: pandas dataframe of sgRNAs for one start/stop site as produced by sgRNApositionCheck() function
+        
     output:
         winnersgRNA: the sequence of the best guideRNA (str)
-        mutationNeeded: True/False of whether this sgRNA needs to be mutated.
-
+        mutationNeeded: True/False of whether this sgRNA needs to be mutated (bool)
     """
     #Set up the winning guide RNA
     winnerFound = False
@@ -417,39 +415,48 @@ def find_best_gRNA(sgRNAdf):
 
 def codonFragmenter(winnerdf, side, side_boundary):
     """
-    For the CDS of each start/stop, will create a list of codons.
-    If gene is on - strand, these will be revComp codons.
+    For the CDS of each start/stop, will create a list of codons. If gene is on - strand, will reverse complement each codon individually.
 
     params:
-        side: "HAL" or "HAR" depending on where base to mutate
-        winnerdf: pandas Series for the row of the sgRNA dataframe containing information about the winner sgRNA:
-            fmin                                                            396165
-            fmax                                                            396187
-            #chr                                                                 X
-            strand                                                               -
-            sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
-            Gene_ID                                                    FBgn0004170
-            Transcript_ID                                              FBtr0070073
-            Chromosome                                                           X
-            Gene_Region                                                start_codon
-            Start                                                           396177
-            Stop                                                            396179
-            Strand                                                               +
-            Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
-            upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
-            downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
-            positionScore                                                        8
-            PAM_in_start/stop                                                False
-            <15_bp3’_overhang                                                 True
-            PAM_in_CDS                                                       False
-            PAM_outside_CDS                                                   True
-            CDS_boundary                                                       >22
-            lastG                                                              8.0
-            cutSite                                                           13.0
-            mutated                                                          False
+        side: "HAL" or "HAR" depending on where base to mutate, str
+        side_boundary: list of integers, positionScores for bp that are located in the CDS
+        winnerdf: pandas Series for the row of the sgRNA dataframe containing information about the winner sgRNA. Format of sgRNAdf
+        as produced by sgRNApositionCheck() function.
 
     returns:
-        codonList: codons from CDS respective to the region of interest in mutable format (revComp if gene is -)
+        codonList: list, codons from CDS respective to the region of interest in mutable format. If gene is on - strand, codons are individually reverse complemented.
+        winnerdf_copy: same as input pandas series, now with HAR_HA or HAL_HA column added. If CDS is in HAR, the HAR_HA column stores a list of bp positions relative 
+        to the start of the CDS. If CDS is in HAL, the HAL_HA column stores a list of bp positions relative to the end of the CDS.
+        
+        fmin                                                               9792986
+        fmax                                                               9793008
+        #chr                                                                    2L
+        strand                                                                   +
+        sgRNA_sequence                                     GCACAGTTTACGCAGGTCCATGG
+        Gene_ID                                                        FBgn0032150
+        Transcript_ID                                                  FBtr0079917
+        Chromosome                                                              2L
+        Gene_Region                                                    start_codon
+        Start                                                              9793004
+        Stop                                                               9793006
+        Strand                                                                   -
+        Reference_Seq            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...
+        HAL                      AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...
+        HAR                      GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...
+        positionScore                                                            2
+        CDS_side                                                               HAL
+        non_CDS_side                                                           HAR
+        PAM_in_start/stop                                                     True
+        max_15_bp_3’_overhang                                                False
+        PAM_in_CDS                                                           False
+        PAM_outside_CDS                                                      False
+        SRS_in_CDS                                                            True
+        CDS_boundary             [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...
+        non_CDS_boundary         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...
+        SRS_boundary                                      [-8, -7, -6, -5, -4, -3]
+        mutable_PAM                                                        [-1, 0]
+        cut_site                                                                -3
+        HAL_HA                   [-22, -21, -20, -19, -18, -17, -16, -15, -14, ...
     """
     import numpy as np
     
@@ -481,64 +488,29 @@ def codonFragmenter(winnerdf, side, side_boundary):
 
 def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     """
-    Will take a fragmented list of codons of CDS around the region of interest and replace the mutated HAL/HAR arms in tfsDF.
-    If gene is on - strand, revComp codons will be reversed back to the + strand sequences.
+    Will recombine a fragmented list of codons of CDS around the region of interest to a string. Will then replace the mutated HAL/HAR arms in TFsdf.
+    If gene is on - strand, reverse complemented codons will be translated back to the + strand sequences.
 
     params:
-        codonList: codons from the ±21bp region around the start/stop site in mutable format (revComp if gene is -)
-        winnerdf: pandas series of the winning df in format:
-
-        fmin                                                            396165
-        fmax                                                            396187
-        #chr                                                                 X
-        strand                                                               -
-        sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
-        Gene_ID                                                    FBgn0004170
-        Transcript_ID                                              FBtr0070073
-        Chromosome                                                           X
-        Gene_Region                                                start_codon
-        Start                                                           396177
-        Stop                                                            396179
-        Strand                                                               +
-        Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
-        upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
-        downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
-        positionScore                                                        8
-        PAM_in_start/stop                                                False
-        <15_bp3’_overhang                                                 True
-        PAM_in_CDS                                                       False
-        PAM_outside_CDS                                                   True
-        CDS_boundary                                                       >22
-        lastG                                                              8.0
-        cutSite                                                           13.0
-        mutated                                                          False
+        codonList: codons window region around the start/stop site in mutable format (revComp if gene is -), list
+        winnerdf: pandas series of the winning sgRNA taken from one row of the sgRNAdf produced by condonFragmenter() function.
+        side: "HAL" or "HAR" depending on where base to mutate, str
+        side_boundary: list of integers, positionScores for bp that are located in the CDS
     
-    output: the winningdf as previously, now with mutated upstreamHA or downstreamHA.
-        fmin                                                            396165
-        fmax                                                            396187
-        #chr                                                                 X
-        strand                                                               -
-        sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
-        Gene_ID                                                    FBgn0004170
-        Transcript_ID                                              FBtr0070073
-        Chromosome                                                           X
-        Gene_Region                                                start_codon
-        Start                                                           396177
-        Stop                                                            396179
-        Strand                                                               +
-        Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
-        upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
-        downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
-        positionScore                                                        8
-        PAM_in_start/stop                                                False
-        <15_bp3’_overhang                                                 True
-        PAM_in_CDS                                                       False
-        PAM_outside_CDS                                                   True
-        CDS_boundary                                                       >22
-        lastG                                                              8.0
-        cutSite                                                           13.0
-        mutated                                                          False
-
+    output: 
+        winningdf_copy: same as input pandas series, now with mutated HAL and HAR in the format:
+        
+        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand \   
+        9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
+        
+        Reference_Seq	                                    HAL	                                                HAR	\                                                                                                
+        AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\	
+        
+        positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS \
+        3	            HAL	        HAR	            False	            True	                False	    True	        True	\  
+    
+        CDS_boundary	                                    non_CDS_boundary	                                SRS_boundary	            mutable_PAM	    cut_site         
+        [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
     """
     #return to + strand if the gene is on -
     if winnerdf["Strand"] == '-':
@@ -561,7 +533,7 @@ def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
 def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inputfiles/codon_table.xlsx"):
 
     '''
-    Uses the amino acids table to select codons that encode for the same amino acid as the query codon. Will ensure the specified base has been mutated.
+    Uses the codon table to select codons that encode for the same amino acid as the query codon. Will ensure the specified base has been mutated.
 
     Params:
         query_codon: string, codon to select synonymous codons for
@@ -569,7 +541,8 @@ def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inp
         codon_table_excel: string, path to an excel file that lists per codon which amino acid that codon encodes.
     
     Returns:
-        synonymous_codons: list of strings, each string is a codon that encodes for the same amino acid as the query codon.
+        synonymous_codons: list of strings, each string is a codon that encodes for the same amino acid as the query codon but has a change 
+        in the base position specified.
     
     '''
 
@@ -595,13 +568,20 @@ def mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM = False
 
     """
     (1) converts the position of the base that we would like to try and mutate into a codon position
-    (2) finds synonymous mutations for the codon in the the codon position of the fragmented CDS
+    (2) finds synonymous mutations for the codon in the the codon position of the fragmented CDS calling synonymous_codons() function
     (3) picks a synonymous mutation that mutates the base that we would like to try and mutate if possible
     (4) returns the mutated fragemented CDS if mutation was possible or throws exemption
 
     params:
         basePosition: integer, base position within sgRNA relative to fmax
         fragmentedCDS: list, codons in direction of translation between gene region of interest and maxDistance or minDistance 
+        winnwerdf: pandas series of the winning sgRNA as extracted from one row of the sgRNAsf. sgRNAdf format as produced by codonFragmenter function
+        codonCoordinates: str, pandas dataframe relating the positionScore to codon position and base position within codon
+        PAM: boolean, specifying we are trying to mutate the PAM or not
+    
+    returns:
+        fragmentedCDS: list, codons in direction of translation between gene region of interest and maxDistance or minDistance, 
+        with the codon at basePosition mutated if possible
     """
     from sgRNAutils import find_synonymous_codons
     pos_relative_to_CDS = basePosition + winnerdf["positionScore"] - winnerdf["CDS_boundary"][0] # explained in Positions section of MutationLogic.pptx
@@ -625,35 +605,44 @@ def mutator(basePosition, fragmentedCDS, winnerdf, codonCoordinates, PAM = False
 def find_best_mutation(winnerdf):
     """
         In the case where a fragment needs to be mutated, will mutate in CDS (preferably PAM, if not then in the sgRNA). 
-        If not possible, will mutate PAM outside of CDS to NTG/CTN.
+        If not possible, will mutate PAM outside of CDS.
         
         params:
-            winnerdf: the pandas series of the winning sgRNA in format:
-                fmin                                                            396165
-                fmax                                                            396187
-                #chr                                                                 X
-                strand                                                               -
-                sgRNA_sequence                                 CCGAGTGTGTTAATGAAAAATAA
-                Gene_ID                                                    FBgn0004170
-                Transcript_ID                                              FBtr0070073
-                Chromosome                                                           X
-                Gene_Region                                                start_codon
-                Start                                                           396177
-                Stop                                                            396179
-                Strand                                                               +
-                Reference_Seq        ACCTGCGATAATTTGACATTCTTAGAAACTACCTGAAGAAATAGGA...
-                upstreamHA           TCTGGTCAGTGCCATACCCCTTGGTGTATACTTGCGAGTCTTAATT...
-                downstreamHA         AACACACTCGGAGCTTTCTTTAACTTTCCGGATAACGATCAACAGA...
-                positionScore                                                        8
-                PAM_in_start/stop                                                False
-                <15_bp3’_overhang                                                 True
-                PAM_in_CDS                                                       False
-                PAM_outside_CDS                                                   True
-                CDS_boundary                                                       >22
-                lastG                                                              8.0
-                cutSite                                                           13.0
-                mutated                                                          False
-
+            winnerdf: pandas series of the winning sgRNA as extracted from one row of the sgRNAsf. sgRNAdf format as produced by codonFragmenter() function.
+        
+        returns:
+            winnerdf: same as input but with the "mutated?" column set to True and the mutated HA if a mutation was possible. Dataframe of the following format:
+            
+            fmin                                                              11278450
+            fmax                                                              11278472
+            #chr                                                                    2L
+            strand                                                                   +
+            sgRNA_sequence                                     CATGCAGCTGCATCCCAATGCGG
+            Gene_ID                                                        FBgn0052831
+            Transcript_ID                                                  FBtr0091683
+            Chromosome                                                              2L
+            Gene_Region                                                    start_codon
+            Start                                                             11278451
+            Stop                                                              11278453
+            Strand                                                                   +
+            Reference_Seq            TTAGCGGACCATTAGAAACACAATTGAGTTTGCATTGGGTGCTTTA...
+            HAL                      GCGGGAGAGAGTCGAGAGTCATTCGTTTGTCTCACTCCTGCGAGTG...
+            HAR                      CAGCTGCATCCCAATGCTGAGTCGCCATCGGGGTAAGTTGATTCTA...
+            positionScore                                                           19
+            CDS_side                                                               HAR
+            non_CDS_side                                                           HAL
+            PAM_in_start/stop                                                    False
+            max_15_bp_3’_overhang                                                False
+            PAM_in_CDS                                                            True
+            PAM_outside_CDS                                                      False
+            SRS_in_CDS                                                            True
+            CDS_boundary             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...
+            non_CDS_boundary         [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...
+            SRS_boundary                                      [-8, -7, -6, -5, -4, -3]
+            mutable_PAM                                                        [-1, 0]
+            cut_site                                                                14
+            mutated?                                                              True
+            HAR_HA                   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,...
         """
     import pandas as pd
     from sgRNAutils import codonFragmenter, codonReverseFragmenter, mutator
@@ -721,11 +710,17 @@ def find_best_mutation(winnerdf):
 
 def sgRNArunner(inputfile, fastaFile, annotationFile, sgRNAFolder, window):
     """
-    Check functions so far work with the proposed changes.
+    Will design sgRNAs and Homology Arms to tag every annotated termini (every start/stop codon) of given genes. Saves output as an excel file in ./outputFiles.
+    
     params:
-        inputfile:
-        minDistance: window size left of region of interest to search for sgRNAs in, has to be divisible by 3, minimum -42
-        maxDistance window size right of region of interest to search for sgRNAs in, has to be divisible by 3, maximum 42
+        inputfile: path to excel file listing gene IDs.
+        fastaFile: path to the fasta file containing the reference genome.
+        annotationFile: path to the gff file containing the annotation of the reference genome.
+        sgRNAFolder: path to the folder containing the files listing sgRNAs at different stringencies.
+        window: window size left and right of region of interest to search for sgRNAs in, has to be divisible by 3, maximum 42
+        
+    output:
+        TFsdfWinnersandMutated: pandas dataframe of the designed sgRNAs for each annotated termini of given genes of the format as produced by the find_best_mutation() function.
     """
     import pandas as pd
     from datetime import datetime
