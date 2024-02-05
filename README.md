@@ -83,3 +83,8 @@ Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before 
    python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21
    python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42
    ```
+
+   ---
+# Future project ideas
+- Improve code run time using multiprocessing
+- Change HA and sgRNA output into the format used for ordering the fragments
