@@ -41,7 +41,7 @@ Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before 
    conda activate AutoTagsEnv
    ```
 
-2. Go to our [Google Drive](...)
+2. Go to our [Google Drive](https://drive.google.com/drive/u/2/folders/162uoqatwaCwedfsUMTlAHNHkJTP7n6ki)
    
 3. Download and save the following files in [inputfiles](inputfiles):
    - dmel-all-r6.48.gtf
