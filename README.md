@@ -74,7 +74,7 @@ Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before 
    ```
 
 7. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
-   **_⚠️ Warning:_** This might take 5 days to run. Do not open excel sheets from this repository while the pipeline is running. Opening excel sheets would cause the run to crash.
+   **_⚠️ Warning:_** This takes about 3 days to run. Do not open excel sheets from this repository while the pipeline is running. Opening excel sheets would cause the run to crash.
      
    ```bash
    # run whole pipeline
