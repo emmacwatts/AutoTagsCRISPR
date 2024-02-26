@@ -69,19 +69,21 @@ Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before 
    jupyter notebook sgRNA_tests_window_42_pb.ipynb
    
    # run tests with shorter mock files for a window left and right of the annotated termini of 21 bp and 42 bp
-   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21
-   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42
+   # print statements will get stored in text files in outputFiles
+   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21 >> outputFiles/outMock21.txt
+   python sgRNArunner.py "inputfiles/mockMaterials/TFsTruncatedLong.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42 >> outputFiles/outMock42.txt
    ```
 
-7. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
+8. Run AutoTagsCRISPR for all annotated termini of the 753 Drosophila TFs.
    **_⚠️ Warning:_** This takes about 3 days to run. Do not open excel sheets from this repository while the pipeline is running. Opening excel sheets would cause the run to crash.
      
    ```bash
    # run whole pipeline
    # of note, you can specify the window (number of bp) left and right of the annotated termini in which you would like to design the sgRNA
    # the number of bp has to be divisible by 3 and can be maximum 42
-   python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21
-   python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42
+   # print statements will get stored in text files in outputFiles
+   python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 21 >> outputFiles/outFull21.txt
+   python sgRNArunner.py "inputfiles/TFs.xlsx" "inputfiles/dmel-all-chromosome-r6.48.fasta" "inputfiles/dmel-all-r6.48.gtf" "inputfiles/sgRNAFiles" 42 >> outputFiles/outFull42.txt
    ```
 
    ---
