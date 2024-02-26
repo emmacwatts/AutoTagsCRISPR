@@ -122,15 +122,15 @@ def make_homology_arm_fragments(TFsdf, refSeqPerChromosome):
     input: TFsdf: pandas dataframe of information about start/stop codon.
            refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
     output: TFsdf pandas dataframe appended with HAL and HAR of the format:
-        Gene_ID Transcript_ID Chromosome  Gene_Region   Start    Stop Strand  \
+        Gene_ID Transcript_ID Chromosome  Gene_Region   Start    Stop Strand  /
         0  FBgn0000022   FBtr0070072          X  start_codon  370094  370096      +   
         1  FBgn0000022   FBtr0070072          X   stop_codon  370697  370699      +   
 
-                                            Reference_Seq  \
+                                            Reference_Seq  /
         0  CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...   
         1  GACATTGTGTCGTTCGTATGTCGCCCATTGAGACCGCCAATGGAGG...   
 
-                                                        HAL  \
+                                                        HAL  /
         0  TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...   
         1  CACCAAGAGTTGCAGTTGCAATCTCCAACTGGCAGCACAAGTTCCT...   
 
@@ -166,8 +166,8 @@ def filter_gRNA(gRNA_file, window, tfSingleRow, refSeqPerChromosome):
         refSeqPerChromosome: reference chromosome stored in SeqIO sequence format, indexed by refSeqPerChromosome[seq.id] = seq.seq
         
     returns: filtered_gRNAs: pandas dataframe of sgRNAs for one start/stop site of the format:
-       	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	\
-        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	\
+       	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	/
+        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	/
         
         Strand	Reference_Seq	                                    HAL	                                                HAR
         +	    CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...	TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...	GCTTTGGGCAGCGAAAATCACTCTGTTTTCAACGACGACGAGGAGT...
@@ -225,8 +225,8 @@ def gRNA_stringencyIterator(tfSingleRow, window, refSeqPerChromosome, sgRNAFolde
 
     returns:
         sgRNA: pandas dataframe of gRNAs of a particular stringecy for a given start/stop codon in the format:
-        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	\
-        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	\
+        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	/
+        370082	370104	X	    +	    CTATCTCTTAAAATGGCTTTGGG	FBgn0000022	FBtr0070072	    X	        start_codon	370094	370096	/
         
         Strand	Reference_Seq	                                    HAL	                                                HAR
         +	    CTAATGAATAGATTGGTGTGTGATGTAGTGATCTAATATGGTGAAG...	TACTACCTCTCTATTAAAATCAGAGAAAACACTCATCTCAAGAGAC...	GCTTTGGGCAGCGAAAATCACTCTGTTTTCAACGACGACGAGGAGT...
@@ -254,34 +254,30 @@ def sgRNApositionCheck(sgRNAdf, minDistance, maxDistance):
     for each sgRNA.
 
     params: 
-        minDistance, maxDistance: minimum and maximum distances from the start/stop site that the sgRNA can be in, must be divisible by 3
+        minDistance, maxDistance: minimum and maximum distances from the start/stop site that the sgRNA can be in
         sgRNAdf: a pandas dataframe of sgRNAs for one start/stop site
         
     output: 
         sgRNAdf: pandas dataframe of sgRNAs for one start/stop site, appended with positional information and condition checks in format:
-        	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand \   
-            9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
-            9792986	9793008	2L	    +	    GCACAGTTTACGCAGGTCCATGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
+        	fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand /   
+            9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   /
+            9792986	9793008	2L	    +	    GCACAGTTTACGCAGGTCCATGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   /
            
-            Reference_Seq	                                    HAL	                                                HAR	\                                                                                                
-            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\	
-            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\
+            Reference_Seq	                                    HAL	                                                HAR	/                                                                                                
+            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT.../	
+            AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT.../
             
-            positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS\
-            3	            HAL	        HAR	            False	            True	                False	    True	        True	\  
-            2	            HAL	        HAR	            True	            False	                False	    False	        True	\   
+            positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS/
+            3	            HAL	        HAR	            False	            True	                False	    True	        True	/
+            2	            HAL	        HAR	            True	            False	                False	    False	        True	/   
     
             CDS_boundary	                                    non_CDS_boundary	                                SRS_boundary	            mutable_PAM	    cut_site         
-            [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
-            [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -3
+            [-23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
+            [-23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -3
     """
     import pandas as pd
     import sys
     import numpy as np
-
-    # Sanity check for divisibility by 3
-    if minDistance % 3 != 0 or maxDistance % 3 != 0:
-        raise ValueError("minDistance and maxDistance must be divisible by 3.")
 
     #Adding position scores (fmax - stop)
     sgRNAdf["positionScore"] = sgRNAdf["fmax"] - sgRNAdf["Stop"]
@@ -456,7 +452,7 @@ def codonFragmenter(winnerdf, side, side_boundary):
         PAM_in_CDS                                                           False
         PAM_outside_CDS                                                      False
         SRS_in_CDS                                                            True
-        CDS_boundary             [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...
+        CDS_boundary             [-23, -22, -21, -20, -19, -18, -17, -16, ...
         non_CDS_boundary         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...
         SRS_boundary                                      [-8, -7, -6, -5, -4, -3]
         mutable_PAM                                                        [-1, 0]
@@ -472,12 +468,12 @@ def codonFragmenter(winnerdf, side, side_boundary):
     winnerdf_copy = winnerdf.copy()
 
     if side == "HAR":
-        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) - 1 #HA is 1bp to the right of stop
+        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) - 1 #HA is 1bp from positionScore of 0
         mutable_region = HA[:winnerdf_copy[f"{side}_HA"][-1]+1]
     
     if side == "HAL":
-        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) + 2 #HA is 3pb to the left of stop but because we index backwards we calculate - 1 
-        mutable_region = HA[winnerdf_copy[f"{side}_HA"][0]+1:]
+        winnerdf_copy[f"{side}_HA"] = np.array(side_boundary) + 2 #HA is 2 bp from positionScore of -1
+        mutable_region = HA[winnerdf_copy[f"{side}_HA"][0]:]
     
     #Start codon list
     codonList = []
@@ -505,17 +501,17 @@ def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     output: 
         winningdf_copy: same as input pandas series, now with mutated HAL and HAR in the format:
         
-        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand \   
-        9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   \
+        fmin	fmax	#chr	strand	sgRNA_sequence	        Gene_ID	    Transcript_ID	Chromosome	Gene_Region	Start	Stop	Strand /   
+        9792987	9793009	2L	    +	    CACAGTTTACGCAGGTCCATGGG	FBgn0032150	FBtr0079917	    2L	        start_codon	9793004	9793006	-	   /
         
-        Reference_Seq	                                    HAL	                                                HAR	\                                                                                                
-        AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT...\	
+        Reference_Seq	                                    HAL	                                                HAR	                                                                                                
+        AATTTAATTTTTTTTATAATTAATTTAGTGCTAATCTTTGAGCAGC...	AATCATTACAGATCATGGGCAGCTCCTCAGTAAGATTAAGTGCTAT...	GGGTTTTATTATTTAATTAATGTAAATAAACTGTAATGTTAATGTT.../	
         
-        positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS \
-        3	            HAL	        HAR	            False	            True	                False	    True	        True	\  
+        positionScore	CDS_side	non_CDS_side	PAM_in_start/stop	max_15_bp_3’_overhang	PAM_in_CDS	PAM_outside_CDS	SRS_in_CDS /
+        3	            HAL	        HAR	            False	            True	                False	    True	        True	/  
     
         CDS_boundary	                                    non_CDS_boundary	                                SRS_boundary	            mutable_PAM	    cut_site         
-        [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
+        [-23, -22, -21, -20, -19, -18, -17, -16, ...	[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...	[-8, -7, -6, -5, -4, -3]	[-1, 0]	        -2
     """
     #return to + strand if the gene is on -
     if winnerdf["Strand"] == '-':
@@ -532,7 +528,7 @@ def codonReverseFragmenter(codonsList, winnerdf, side, side_boundary):
     if side == "HAR":
         winnerdf_copy.at["HAR"] = mutable_region + winnerdf["HAR"][winnerdf[f"{side}_HA"][-1]+1:]
     if side == "HAL":
-        winnerdf_copy.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side}_HA"][0]+1] + mutable_region
+        winnerdf_copy.at["HAL"] =  winnerdf["HAL"][:winnerdf[f"{side}_HA"][0]] + mutable_region
     return winnerdf_copy
 
 def find_synonymous_codons(query_codon, base_to_change, codon_table_excel = "inputfiles/codon_table.xlsx"):
@@ -642,7 +638,7 @@ def find_best_mutation(winnerdf):
             PAM_outside_CDS                                                      False
             SRS_in_CDS                                                            True
             CDS_boundary             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14...
-            non_CDS_boundary         [-24, -23, -22, -21, -20, -19, -18, -17, -16, ...
+            non_CDS_boundary         [-23, -22, -21, -20, -19, -18, -17, -16, ...
             SRS_boundary                                      [-8, -7, -6, -5, -4, -3]
             mutable_PAM                                                        [-1, 0]
             cut_site                                                                14
@@ -729,6 +725,10 @@ def sgRNArunner(inputfile, fastaFile, annotationFile, sgRNAFolder, window):
     """
     import pandas as pd
     from datetime import datetime
+    
+    # Sanity check for divisibility by 3
+    if window % 3 != 0:
+        raise ValueError("Window must be divisible by 3.")
 
     #set up reference sequence Bio SeqIO element
     refSeqPerChromosome = refSeq(fastaFile)
@@ -754,7 +754,7 @@ def sgRNArunner(inputfile, fastaFile, annotationFile, sgRNAFolder, window):
         filtered_sgRNA = gRNA_stringencyIterator(row, window, refSeqPerChromosome, sgRNAFolder)
 
         #Derive min and max distance from stop position
-        minDistance = (window + 3) * -1 # leave a 3bp gap to account for start/stop site
+        minDistance = (window + 2) * -1 # leave a 2bp gap to account for start/stop site
         maxDistance = window
         #Score the sgRNAs for this site
         sgRNAdf = sgRNApositionCheck(filtered_sgRNA, minDistance, maxDistance)
