@@ -5,6 +5,14 @@ AutoTagsCRISPR is a pipeline for automated CRISPR construct design to tag genes 
 Here, we will demonstrate the usability and logic of AutoTagsCRISPR using a Drosophila Melanogaster project as an example. :fly:
 To understand the function of a transcription factor (TF), it is necessary to study its tissue distribution, binding characteristics at physiological concentration, chromatin accessibility state, effect on transcription, and protein interactions. To investigate these properties, S. Kittelmann et al.,  propose to generate a biological resource to enable the in-depth study of TF function in Drosophila. This resource will consist of three parts: a set of plasmids for tagging all Drosophila TFs with an exchangeable cargo, fly lines in which TFs have been tagged, and a database with expression and binding information for a subset of previously unstudied TFs. S. Kittelmann et al., will insert a superfolder-GFP (sfGFP) to 1) tag TFs specifically; 2) tag at the endogenous genomic location, capturing all regulatory information; 3) tag all isoforms with different N and C-termini; 4) allow easy tag exchange; 5) support easy removal of transgenic markers, allowing virtually scarless gene editing. There are on average 2.56 termini annotated per TF gene, amounting to 1,915 CRISPR constructs in total for the 753 TF genes in the Drosophila genome. AutoTagsCRISPR will allow for an automated CRISPR construct design to speed up the design process and minimise costs.
 
+sgRNAs are selected according to this logic:
+
+<img width="401" height="591" alt="Screenshot 2025-09-14 at 19 01 47" src="https://github.com/user-attachments/assets/68498b78-8a0b-40b1-a45a-0dbc75a7ce2f" />
+
+and primers are designed according to this workflow:
+
+<img width="402" height="435" alt="Screenshot 2025-09-14 at 19 01 35" src="https://github.com/user-attachments/assets/bf494973-78de-46c7-8d89-cf3dab094ce4" />
+
 For further information read [PipelineLogic.pptx](./PipelineLogic.pptx) in Slide Show mode.
 
 ![image](https://user-images.githubusercontent.com/120821707/210607784-b8ccab0c-a99f-46fc-afdc-5f6f702fe3a1.png)
@@ -90,3 +98,4 @@ Guide describing the logic and usability of the AutoTagsCRISPR pipeline. Before 
 # Future project ideas
 - Improve code run time using multiprocessing
 - Change HA and sgRNA output into the format used for ordering the fragments
+- Add a mutation for the 6bp after PAM in the case that PAM is in the start/stop site.
