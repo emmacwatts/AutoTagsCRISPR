@@ -7,11 +7,12 @@ To understand the function of a transcription factor (TF), it is necessary to st
 
 sgRNAs are selected according to this logic:
 
-<img width="401" height="591" alt="Screenshot 2025-09-14 at 19 01 47" src="https://github.com/user-attachments/assets/68498b78-8a0b-40b1-a45a-0dbc75a7ce2f" />
+<img width="472" height="711" alt="Screenshot 2025-10-18 at 10 29 35" src="https://github.com/user-attachments/assets/9f2d26ab-c110-4bb0-bb42-5bffde630721" />
 
 and primers are designed according to this workflow:
 
 <img width="402" height="435" alt="Screenshot 2025-09-14 at 19 01 35" src="https://github.com/user-attachments/assets/bf494973-78de-46c7-8d89-cf3dab094ce4" />
+
 
 For further information read [PipelineLogic.pptx](./PipelineLogic.pptx) in Slide Show mode.
 
